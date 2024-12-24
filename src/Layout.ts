@@ -26,25 +26,52 @@ type KeyElement = {
     height: number,
 }
 
-export default class PianoLayout {
+type Config = {
+    width: number,
+    height: number,
+    pianoHeight: number
+}
+
+export default class Layout {
+    private pianoHeight: number;
+    private height: number;
     private widthFactor: number;
     private heightFactor: number;
-    private containerWidth: number;
+    private width: number;
+    private diatonicRange: number = 15;
 
-    constructor(containerWidth: number) {
+    constructor(config: Config) {
         this.widthFactor = 1;
         this.heightFactor = 1;
-        this.containerWidth = containerWidth;
-        this.setRange(15);
+        this.width = config.width;
+        this.height = config.height;
+        this.pianoHeight = config.pianoHeight;
+        this.updatePianoHeight(this.pianoHeight);
+        this.setRange(this.diatonicRange);
+    }
+
+    public setWidth(width: number) {
+        this.width = width;
+        this.setRange(this.diatonicRange);
+    }
+
+    public getPianoHeight(): number {
+        return this.pianoHeight;
+    }
+
+    public getPianoY(): number {
+        return this.height - this.pianoHeight;
     }
 
     public setRange(diatonicRange: number) {
-        const visibleKeys = this.containerWidth / NATURAL_KEY_WIDTH;
+        this.diatonicRange = diatonicRange;
+        const visibleKeys = this.width / NATURAL_KEY_WIDTH;
         this.widthFactor = visibleKeys / diatonicRange;
     }
 
-    public setHeight(height: number) {
-        this.heightFactor = height / NATURAL_KEY_HEIGHT;
+    public updatePianoHeight(pianoHeight: number) {
+        this.pianoHeight = pianoHeight;
+        this.heightFactor = pianoHeight / NATURAL_KEY_HEIGHT;
     }
 
     public getKeyElement(midi: number): KeyElement {

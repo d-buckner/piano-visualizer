@@ -1,6 +1,6 @@
-import Piano from './Piano';
+import Visualization from './Visualization';
 
-new Piano({
+new Visualization({
     container: document.body,
-    background: 'black'
+    backgroundColor: 'black',
 });

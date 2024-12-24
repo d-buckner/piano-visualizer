@@ -1,6 +1,6 @@
 const MIN_HEIGHT = 100;
 const MAX_HEIGHT_RATIO = 0.5; // can fill up to 50% of vertical space
-const BAR_HEIGHT = 12;
+const BAR_HEIGHT = 16;
 
 type Config = {
     container: HTMLElement,
@@ -15,8 +15,14 @@ export default function renderVerticalResizer(config: Config) {
     const resizeBar = document.createElement('div');
     setStyle(initHeight);
 
-    resizeBar.onmousedown = () => isActive = true;
-    container.onmouseup = () => isActive = false;
+    resizeBar.onmousedown = () => {
+        isActive = true;
+        document.body.style.cursor = 'ns-resize';
+    };
+    container.onmouseup = () => {
+        isActive = false;
+        document.body.style.cursor = '';
+    };
     container.onmousemove = (e: MouseEvent) => {
         const {clientHeight} = container;
         const height = clientHeight - e.clientY;
