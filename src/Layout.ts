@@ -19,7 +19,7 @@ const CHROMA_X_POSITIONS = [
     575,
     600,
 ] as const;
-const X_OFFSET_CHROMA = new Set([0, 5]);
+const X_OFFSET_CHROMA = new Set([2, 4, 7, 9, 11]);
 const WIDE_ACCIDENTAL_CHROMA = new Set([0, 4, 5, 11]);
 
 type KeyElement = {
@@ -105,8 +105,8 @@ export default class Layout {
             ? (ACCIDENTAL_KEY_WIDTH + NATURAL_KEY_WIDTH) / 2
             : ACCIDENTAL_KEY_WIDTH;
         const xOffset = X_OFFSET_CHROMA.has(pitch.chroma)
-            ? 0
-            : (NATURAL_KEY_WIDTH - width) / 2;
+            ? (NATURAL_KEY_WIDTH - ACCIDENTAL_KEY_WIDTH) / 2
+            : 0;
 
 
         return {

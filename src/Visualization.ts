@@ -59,6 +59,7 @@ export default class Visualization {
             background: backgroundColor,
             resizeTo: container,
             antialias: true,
+            preference: 'webgpu',
         });
 
         container.appendChild(this.app.canvas);
