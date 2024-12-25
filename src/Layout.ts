@@ -19,11 +19,18 @@ const CHROMA_X_POSITIONS = [
     575,
     600,
 ] as const;
+const X_OFFSET_CHROMA = new Set([0, 5]);
+const WIDE_ACCIDENTAL_CHROMA = new Set([0, 4, 5, 11]);
 
 type KeyElement = {
     x: number,
     width: number,
     height: number,
+}
+
+type RollElement = {
+    x: number,
+    width: number,
 }
 
 type Config = {
@@ -55,6 +62,10 @@ export default class Layout {
         this.setRange(this.diatonicRange);
     }
 
+    public getTotalHeight(): number {
+        return this.height;
+    }
+
     public getPianoHeight(): number {
         return this.pianoHeight;
     }
@@ -84,6 +95,23 @@ export default class Layout {
             x: x * this.widthFactor,
             width: width * this.widthFactor,
             height: height * this.heightFactor,
+        };
+    }
+
+    public getRollElement(midi: number): RollElement {
+        const pitch = new Pitch(midi);
+        const x = CHROMA_X_POSITIONS[pitch.chroma] + pitch.octave * OCTAVE_WIDTH;
+        const width = WIDE_ACCIDENTAL_CHROMA.has(pitch.chroma)
+            ? (ACCIDENTAL_KEY_WIDTH + NATURAL_KEY_WIDTH) / 2
+            : ACCIDENTAL_KEY_WIDTH;
+        const xOffset = X_OFFSET_CHROMA.has(pitch.chroma)
+            ? 0
+            : (NATURAL_KEY_WIDTH - width) / 2;
+
+
+        return {
+            x: (x + xOffset) * this.widthFactor,
+            width: width * this.widthFactor,
         };
     }
 }

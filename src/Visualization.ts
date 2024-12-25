@@ -58,6 +58,7 @@ export default class Visualization {
         await this.app.init({
             background: backgroundColor,
             resizeTo: container,
+            antialias: true,
         });
 
         container.appendChild(this.app.canvas);
@@ -67,9 +68,9 @@ export default class Visualization {
             onResize: pianoHeight => this.layout.updatePianoHeight(pianoHeight),
         });
 
-        this.app.ticker.add(() => {
+        this.app.ticker.add(delta => {
             this.piano.render();
-            this.roll.render();
+            this.roll.render(delta);
         });
     }
 }
