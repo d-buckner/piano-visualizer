@@ -56,7 +56,8 @@ export default class Piano {
             this.activeKeys.get(midi)!.pop();
         }
 
-        const newActiveKeys = this.activeKeys.get(midi)?.filter(activeKey => activeKey.identifier !== identifier);
+        const newActiveKeys = this.activeKeys.get(midi)?.filter(
+            activeKey => activeKey.identifier !== identifier);
         if (!newActiveKeys?.length) {
             this.activeKeys.delete(midi);
             return;

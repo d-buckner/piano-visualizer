@@ -2,7 +2,7 @@ import Pitch from './Pitch';
 
 const NATURAL_KEY_WIDTH = 100;
 const NATURAL_KEY_HEIGHT = 250;
-const ACCIDENTAL_KEY_HEIGHT = NATURAL_KEY_HEIGHT * 0.68;
+const ACCIDENTAL_KEY_HEIGHT = NATURAL_KEY_HEIGHT * 0.65;
 const ACCIDENTAL_KEY_WIDTH = NATURAL_KEY_WIDTH / 2;
 const OCTAVE_WIDTH = NATURAL_KEY_WIDTH * 7;
 const CHROMA_X_POSITIONS = [
@@ -45,7 +45,7 @@ export default class Layout {
     private widthFactor: number;
     private heightFactor: number;
     private width: number;
-    private diatonicRange: number = 15;
+    private diatonicRange: number = 7;
 
     constructor(config: Config) {
         this.widthFactor = 1;

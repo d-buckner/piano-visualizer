@@ -1,6 +1,6 @@
 const MIN_HEIGHT = 100;
 const MAX_HEIGHT_RATIO = 0.5; // can fill up to 50% of vertical space
-const BAR_HEIGHT = 16;
+const BAR_HEIGHT = 32;
 
 type Config = {
     container: HTMLElement,
@@ -15,17 +15,27 @@ export default function renderVerticalResizer(config: Config) {
     const resizeBar = document.createElement('div');
     setStyle(initHeight);
 
-    resizeBar.onmousedown = () => {
+    const downHandler = (e: MouseEvent | TouchEvent) => {
+        e.preventDefault();
         isActive = true;
         document.body.style.cursor = 'ns-resize';
     };
-    container.onmouseup = () => {
+
+    const upHandler = () => {
         isActive = false;
         document.body.style.cursor = '';
     };
-    container.onmousemove = (e: MouseEvent) => {
+
+    const moveHandler = (e: MouseEvent | TouchEvent) => {
         const {clientHeight} = container;
-        const height = clientHeight - e.clientY;
+        let clientY;
+        if (e instanceof TouchEvent) {
+            const touch = e.changedTouches?.[0];
+            clientY = touch.clientY;
+        } else {
+            clientY = e.clientY;
+        }
+        const height = clientHeight - clientY;
         if (!isActive || height < MIN_HEIGHT || height > clientHeight * MAX_HEIGHT_RATIO) {
             return;
         }
@@ -33,6 +43,13 @@ export default function renderVerticalResizer(config: Config) {
         setStyle(height);
         onResize(height);
     }
+
+    resizeBar.onmousedown = downHandler;
+    resizeBar.ontouchstart = downHandler;
+    container.onmouseup = upHandler;
+    container.ontouchend = upHandler;
+    container.onmousemove = moveHandler;
+    container.ontouchmove = moveHandler;
 
     container.appendChild(resizeBar);
 
