@@ -4,6 +4,7 @@ import Piano from './Piano';
 import Roll from './Roll';
 import renderVerticalResizer from './verticalResizer';
 
+const DEFAULT_COLOR = '#5dadec';
 
 type Config = {
     container: HTMLElement;
@@ -33,6 +34,8 @@ export default class Visualization {
         this.piano = new Piano({
             container: this.container,
             layout: this.layout,
+            onKeyDown: midi => this.startNote(midi, DEFAULT_COLOR),
+            onKeyUp: midi => this.endNote(midi),
         });
         this.roll = new Roll({
             container: this.container,
@@ -83,16 +86,16 @@ export default class Visualization {
             this.roll.render(delta);
         });
 
-        for (let i = 0; i < 100; i++) {
-            const color = '#5dadec';
-            const startTime = Math.random() * 30000;
-            const midi = Math.floor(Math.random() * 30);
-            setTimeout(() => {
-                this.startNote(midi, color);
-            }, startTime);
-            setTimeout(() => {
-                this.endNote(midi);
-            }, Math.floor(Math.random() * 1000) + startTime + 200);
-        }
+        // for (let i = 0; i < 100; i++) {
+        //     const color = '#5dadec';
+        //     const startTime = Math.random() * 30000;
+        //     const midi = Math.floor(Math.random() * 30);
+        //     setTimeout(() => {
+        //         this.startNote(midi, color);
+        //     }, startTime);
+        //     setTimeout(() => {
+        //         this.endNote(midi);
+        //     }, Math.floor(Math.random() * 1000) + startTime + 200);
+        // }
     }
 }

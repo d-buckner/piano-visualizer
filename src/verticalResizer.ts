@@ -12,8 +12,16 @@ export default function renderVerticalResizer(config: Config) {
     const {container, onResize, initHeight} = config;
     let isActive = false;
 
-    const resizeBar = document.createElement('div');
-    setStyle(initHeight);
+    const touchArea = document.createElement('div');
+    // set initial style
+    touchArea.style.position = 'absolute';
+    touchArea.style.width = '100%';
+    touchArea.style.height = `${BAR_HEIGHT}px`;
+    touchArea.style.cursor = 'ns-resize';
+    touchArea.style.display = 'flex';
+    touchArea.style.justifyContent = 'center';
+
+    setHeight(initHeight);
 
     const downHandler = (e: MouseEvent | TouchEvent) => {
         e.preventDefault();
@@ -40,34 +48,40 @@ export default function renderVerticalResizer(config: Config) {
             return;
         }
 
-        setStyle(height);
+        setHeight(height);
         onResize(height);
     }
 
-    resizeBar.onmousedown = downHandler;
-    resizeBar.ontouchstart = downHandler;
+    // setup all handlers
+    touchArea.onmousedown = downHandler;
+    touchArea.ontouchstart = downHandler;
     container.onmouseup = upHandler;
     container.ontouchend = upHandler;
     container.onmousemove = moveHandler;
     container.ontouchmove = moveHandler;
 
-    container.appendChild(resizeBar);
 
-    function setStyle(height: number) {
+    createUI();
+    container.appendChild(touchArea);
+
+    function setHeight(height: number) {
         const bottom = height - BAR_HEIGHT / 2;
-        const styles: string[] = [
-            'position: absolute',
-            'width: 100%',
-            `height: ${BAR_HEIGHT}px`,
-            'cursor: ns-resize',
-            `bottom: ${bottom}px;`,
-        ];
-        resizeBar.setAttribute('style', styles.join('; '));
+        touchArea.style.bottom = `${bottom}px`;
+    }
+
+    function createUI() {
+        const ui = document.createElement('div');
+        ui.style.backgroundColor = '#424242';
+        ui.style.border = '1px solid black';
+        ui.style.width = '100%';
+        ui.style.height = '8px';
+        ui.style.alignSelf = 'center';
+        touchArea.appendChild(ui);
     }
 
     return {
         dispose: () => {
-            container.removeChild(resizeBar);
+            container.removeChild(touchArea);
         }
     };
 }

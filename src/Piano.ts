@@ -6,6 +6,8 @@ type Config = {
     container: Container;
     backgroundColor?: ColorSource;
     layout: Layout;
+    onKeyDown: (midi: number) => void,
+    onKeyUp: (midi: number) => void,
 }
 
 type ActiveKey = {
@@ -18,6 +20,7 @@ export default class Piano {
     private config: Config;
     private container: Container;
     private graphics: Graphics[];
+    private activeMouseMidi: number | null = null;
     private layout: Layout;
     private activeKeys: Map<number, ActiveKey[]> = new Map();
 
@@ -26,6 +29,7 @@ export default class Piano {
         this.container = new Container();
         this.layout = config.layout;
         this.graphics = Array.from({length: 89}, () => new Graphics());
+        this.setupHandlers();
         this.render();
     }
 
@@ -70,6 +74,15 @@ export default class Piano {
         const prevKeyContainer = this.container;
 
         this.container = new Container();
+        this.container.eventMode = 'static';
+        this.container.on('mouseleave', () => {
+            if (this.activeMouseMidi === null) {
+                return;
+            }
+
+            this.config.onKeyUp(this.activeMouseMidi);
+            this.activeMouseMidi = null;
+        })
         const naturalContainer = new Container();
         const accidentalContainer = new Container();
 
@@ -118,5 +131,30 @@ export default class Piano {
                 shadowHeight,
                 radius * 1.5
             ).fill(color ?? '#424242');
+    }
+
+    private setupHandlers() {
+        this.graphics.forEach((g, midi) => {
+            g.eventMode = 'static';
+            g.on('touchstart', () => {
+                if (!this.activeKeys.has(midi)) {
+                    this.config.onKeyDown(midi);
+                }
+            });
+            g.on('touchend', () => this.config.onKeyUp(midi));
+            g.on('mouseenter', () => {
+                if (this.activeMouseMidi !== midi) {
+                    this.config.onKeyDown(midi);
+                    if (this.activeMouseMidi !== null) {
+                        this.config.onKeyUp(this.activeMouseMidi);
+                    }
+                    this.activeMouseMidi = midi;
+                }
+            });
+            g.on('mouseleave', () => {
+                this.config.onKeyUp(midi);
+                this.activeMouseMidi = null;
+            });
+        });
     }
 }
