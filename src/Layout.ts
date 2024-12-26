@@ -21,6 +21,11 @@ const CHROMA_X_POSITIONS = [
 ] as const;
 const X_OFFSET_CHROMA = new Set([2, 4, 7, 9, 11]);
 const WIDE_ACCIDENTAL_CHROMA = new Set([0, 4, 5, 11]);
+const BREAKPOINT_RANGES = [
+    [700, 8],
+    [1200, 12],
+    [1600, 16],
+]
 
 type KeyElement = {
     x: number,
@@ -45,7 +50,7 @@ export default class Layout {
     private widthFactor: number;
     private heightFactor: number;
     private width: number;
-    private diatonicRange: number = 7;
+    private diatonicRange: number;
 
     constructor(config: Config) {
         this.widthFactor = 1;
@@ -54,12 +59,19 @@ export default class Layout {
         this.height = config.height;
         this.pianoHeight = config.pianoHeight;
         this.updatePianoHeight(this.pianoHeight);
+        this.diatonicRange = this.getRangeFromWidth();
         this.setRange(this.diatonicRange);
     }
 
     public setWidth(width: number) {
+        const lastRangeFromWidth = this.getRangeFromWidth();
         this.width = width;
-        this.setRange(this.diatonicRange);
+        const newRangeFromWidth = this.getRangeFromWidth();
+        const targetRange = lastRangeFromWidth === newRangeFromWidth
+            ? this.diatonicRange
+            : newRangeFromWidth;
+
+        this.setRange(targetRange);
     }
 
     public getTotalHeight(): number {
@@ -113,5 +125,15 @@ export default class Layout {
             x: (x + xOffset) * this.widthFactor,
             width: width * this.widthFactor,
         };
+    }
+
+    private getRangeFromWidth(): number {
+        for (const [breakpoint, range] of BREAKPOINT_RANGES) {
+            if (this.width < breakpoint) {
+                return range;
+            }
+        }
+
+        return 16;
     }
 }
