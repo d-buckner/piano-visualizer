@@ -2,7 +2,7 @@ import {Application, ColorSource, Container} from 'pixi.js';
 import Layout from './Layout';
 import Piano from './Piano';
 import Roll from './Roll';
-import renderVerticalResizer from './verticalResizer';
+import renderVerticalResizer, {VerticalResizer} from './verticalResizer';
 
 const DEFAULT_COLOR = '#5dadec';
 
@@ -19,6 +19,7 @@ export default class Visualization {
     private roll: Roll;
     private layout: Layout;
     private container: Container;
+    private verticalResizer: VerticalResizer;
     private resizeObserver: ResizeObserver;
 
     constructor(config: Config) {
@@ -41,6 +42,11 @@ export default class Visualization {
             container: this.container,
             layout: this.layout,
         });
+        this.verticalResizer = renderVerticalResizer({
+            container: config.container,
+            initHeight: this.layout.getPianoHeight(),
+            onResize: pianoHeight => this.layout.updatePianoHeight(pianoHeight),
+        });
 
         this.app.stage.addChild(this.container);
         this.init();
@@ -62,6 +68,7 @@ export default class Visualization {
     }
 
     public destroy() {
+        this.verticalResizer.dispose();
         this.resizeObserver.disconnect();
         this.app.destroy();
     }
@@ -75,27 +82,10 @@ export default class Visualization {
         });
 
         container.appendChild(this.app.canvas);
-        renderVerticalResizer({
-            container,
-            initHeight: this.layout.getPianoHeight(),
-            onResize: pianoHeight => this.layout.updatePianoHeight(pianoHeight),
-        });
 
         this.app.ticker.add(delta => {
             this.piano.render();
             this.roll.render(delta);
         });
-
-        // for (let i = 0; i < 100; i++) {
-        //     const color = '#5dadec';
-        //     const startTime = Math.random() * 30000;
-        //     const midi = Math.floor(Math.random() * 30);
-        //     setTimeout(() => {
-        //         this.startNote(midi, color);
-        //     }, startTime);
-        //     setTimeout(() => {
-        //         this.endNote(midi);
-        //     }, Math.floor(Math.random() * 1000) + startTime + 200);
-        // }
     }
 }

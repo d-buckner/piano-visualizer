@@ -1,14 +1,15 @@
-import {ColorSource, Container, Graphics} from 'pixi.js';
-import Layout from './Layout';
-import Pitch from './Pitch';
+import {ColorSource, Container, Graphics} from "pixi.js";
+import Layout from "./Layout";
+import Pitch from "./Pitch";
+import PianoController from "./PianoController";
 
 type Config = {
     container: Container;
     backgroundColor?: ColorSource;
     layout: Layout;
-    onKeyDown: (midi: number) => void,
-    onKeyUp: (midi: number) => void,
-}
+    onKeyDown: (midi: number) => void;
+    onKeyUp: (midi: number) => void;
+};
 
 type ActiveKey = {
     color: string;
@@ -19,8 +20,8 @@ type ActiveKey = {
 export default class Piano {
     private config: Config;
     private container: Container;
+    private pianoController: PianoController;
     private graphics: Graphics[];
-    private activeMouseMidi: number | null = null;
     private layout: Layout;
     private activeKeys: Map<number, ActiveKey[]> = new Map();
 
@@ -29,7 +30,12 @@ export default class Piano {
         this.container = new Container();
         this.layout = config.layout;
         this.graphics = Array.from({length: 89}, () => new Graphics());
-        this.setupHandlers();
+        this.pianoController = new PianoController({
+            graphics: this.graphics,
+            onKeyDown: this.config.onKeyDown,
+            onKeyUp: this.config.onKeyUp,
+            pianoY: this.config.layout.getPianoY(),
+        });
         this.render();
     }
 
@@ -60,8 +66,9 @@ export default class Piano {
             this.activeKeys.get(midi)!.pop();
         }
 
-        const newActiveKeys = this.activeKeys.get(midi)?.filter(
-            activeKey => activeKey.identifier !== identifier);
+        const newActiveKeys = this.activeKeys
+            .get(midi)
+            ?.filter((activeKey) => activeKey.identifier !== identifier);
         if (!newActiveKeys?.length) {
             this.activeKeys.delete(midi);
             return;
@@ -74,15 +81,6 @@ export default class Piano {
         const prevKeyContainer = this.container;
 
         this.container = new Container();
-        this.container.eventMode = 'static';
-        this.container.on('mouseleave', () => {
-            if (this.activeMouseMidi === null) {
-                return;
-            }
-
-            this.config.onKeyUp(this.activeMouseMidi);
-            this.activeMouseMidi = null;
-        })
         const naturalContainer = new Container();
         const accidentalContainer = new Container();
 
@@ -90,7 +88,9 @@ export default class Piano {
             const pitch = new Pitch(midi);
             const keyGraphic = this.createKeyGraphic(pitch);
             this.graphics[midi] = keyGraphic;
-            const targetContainer = pitch.isNatural ? naturalContainer : accidentalContainer;
+            const targetContainer = pitch.isNatural
+                ? naturalContainer
+                : accidentalContainer;
             targetContainer.addChild(keyGraphic);
         }
 
@@ -98,7 +98,10 @@ export default class Piano {
         this.container.addChild(accidentalContainer);
         this.config.container.removeChild(prevKeyContainer);
         this.config.container.addChild(this.container);
-        this.container.y = this.layout.getPianoY();
+
+        const pianoY = this.layout.getPianoY();
+        this.container.y = pianoY;
+        this.pianoController.updatePianoY(pianoY);
     }
 
     private createKeyGraphic(pitch: Pitch) {
@@ -113,8 +116,8 @@ export default class Piano {
         if (pitch.isNatural) {
             return graphic
                 .roundRect(keyElement.x, 0, keyElement.width, keyElement.height, radius)
-                .fill(color ?? 'white')
-                .stroke('black');
+                .fill(color ?? "white")
+                .stroke("black");
         }
 
         const shadowMargin = color ? 2 : 4;
@@ -123,38 +126,14 @@ export default class Piano {
             : keyElement.height / 1.0625;
         return graphic
             .roundRect(keyElement.x, 0, keyElement.width, keyElement.height, radius)
-            .fill('black')
+            .fill("black")
             .roundRect(
                 keyElement.x + shadowMargin,
                 0,
                 keyElement.width - shadowMargin * 2,
                 shadowHeight,
-                radius * 1.5
-            ).fill(color ?? '#424242');
-    }
-
-    private setupHandlers() {
-        this.graphics.forEach((g, midi) => {
-            g.eventMode = 'static';
-            g.on('touchstart', () => {
-                if (!this.activeKeys.has(midi)) {
-                    this.config.onKeyDown(midi);
-                }
-            });
-            g.on('touchend', () => this.config.onKeyUp(midi));
-            g.on('mouseenter', () => {
-                if (this.activeMouseMidi !== midi) {
-                    this.config.onKeyDown(midi);
-                    if (this.activeMouseMidi !== null) {
-                        this.config.onKeyUp(this.activeMouseMidi);
-                    }
-                    this.activeMouseMidi = midi;
-                }
-            });
-            g.on('mouseleave', () => {
-                this.config.onKeyUp(midi);
-                this.activeMouseMidi = null;
-            });
-        });
+                radius * 1.5,
+            )
+            .fill(color ?? "#424242");
     }
 }

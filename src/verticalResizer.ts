@@ -8,18 +8,23 @@ type Config = {
     initHeight: number,
 }
 
-export default function renderVerticalResizer(config: Config) {
+export type VerticalResizer = {
+    dispose: () => void;
+}
+
+export default function renderVerticalResizer(config: Config): VerticalResizer {
     const {container, onResize, initHeight} = config;
     let isActive = false;
 
-    const touchArea = document.createElement('div');
-    // set initial style
-    touchArea.style.position = 'absolute';
-    touchArea.style.width = '100%';
-    touchArea.style.height = `${BAR_HEIGHT}px`;
-    touchArea.style.cursor = 'ns-resize';
-    touchArea.style.display = 'flex';
-    touchArea.style.justifyContent = 'center';
+    const hitBox = document.createElement('div');
+
+    // inline styling because this component is the only one that needs css
+    hitBox.style.position = 'absolute';
+    hitBox.style.width = '100%';
+    hitBox.style.height = `${BAR_HEIGHT}px`;
+    hitBox.style.cursor = 'ns-resize';
+    hitBox.style.display = 'flex';
+    hitBox.style.justifyContent = 'center';
 
     setHeight(initHeight);
 
@@ -53,8 +58,8 @@ export default function renderVerticalResizer(config: Config) {
     }
 
     // setup all handlers
-    touchArea.onmousedown = downHandler;
-    touchArea.ontouchstart = downHandler;
+    hitBox.onmousedown = downHandler;
+    hitBox.ontouchstart = downHandler;
     container.onmouseup = upHandler;
     container.ontouchend = upHandler;
     container.onmousemove = moveHandler;
@@ -62,11 +67,11 @@ export default function renderVerticalResizer(config: Config) {
 
 
     createUI();
-    container.appendChild(touchArea);
+    container.appendChild(hitBox);
 
     function setHeight(height: number) {
         const bottom = height - BAR_HEIGHT / 2;
-        touchArea.style.bottom = `${bottom}px`;
+        hitBox.style.bottom = `${bottom}px`;
     }
 
     function createUI() {
@@ -76,12 +81,12 @@ export default function renderVerticalResizer(config: Config) {
         ui.style.width = '100%';
         ui.style.height = '8px';
         ui.style.alignSelf = 'center';
-        touchArea.appendChild(ui);
+        hitBox.appendChild(ui);
     }
 
     return {
         dispose: () => {
-            container.removeChild(touchArea);
+            container.removeChild(hitBox);
         }
     };
 }
