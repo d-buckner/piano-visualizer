@@ -15,6 +15,7 @@ type Block = {
     height: number,
     midi: number,
     color: string,
+    identifier?: string,
 }
 
 type GraphicsOptions = {
@@ -37,17 +38,9 @@ export default class Roll {
         this.config = config;
         this.container = new Container();
         this.config.container.addChild(this.container);
-
-        for (let i = 0; i < 100; i++) {
-            const startTime = Math.random() * 30000;
-            const midi = Math.floor(Math.random() * 30);
-            setTimeout(() => this.startNote(midi, '#5dadec'), startTime);
-            setTimeout(() => this.endNote(midi), Math.floor(Math.random() * 1000) + startTime + 200);
-
-        }
     }
 
-    public startNote(midi: number, color: string) {
+    public startNote(midi: number, color: string, identifier?: string) {
         const element = this.config.layout.getRollElement(midi);
         const graphics = this.updateGraphics({
             x: element.x,
@@ -68,13 +61,23 @@ export default class Roll {
             graphics,
             midi,
             color,
+            identifier,
         });
         this.container.addChild(graphics);
     }
 
-    public endNote(midi: number) {
+    public endNote(midi: number, identifier?: string) {
         const blocks = this.blocks.get(midi);
         if (!blocks?.length) {
+            return;
+        }
+
+        if (identifier) {
+            for (const block of blocks) {
+                if (identifier === block.identifier) {
+                    block.isActive = false;
+                }
+            }
             return;
         }
 
@@ -87,7 +90,7 @@ export default class Roll {
     }
 
     public render(delta: Ticker) {
-        const distance = delta.deltaMS / 4;
+        const distance = delta.deltaMS / 3;
         this.blocks.forEach(blocks => {
             const indexesToRemove: number[] = [];
             blocks.forEach(block => {
@@ -106,13 +109,6 @@ export default class Roll {
                         color: block.color,
                         graphics: block.graphics,
                     });
-                    // block.graphics
-                    //     .roundRect(element.x, block.y + pianoY, element.width, block.height, RADIUS)
-                    //     .fill(block.color)
-                    //     .stroke({
-                    //         width: 2,
-                    //         color: BORDER_COLOR,
-                    //     });
                     return;
                 }
 
@@ -130,13 +126,6 @@ export default class Roll {
                     color: block.color,
                     graphics: block.graphics
                 });
-                // block.graphics
-                //     .roundRect(element.x, block.y + pianoY, element.width, block.height, RADIUS)
-                //     .fill(block.color)
-                //     .stroke({
-                //         width: 2,
-                //         color: BORDER_COLOR,
-                //     });
             });
 
             indexesToRemove.forEach(blockIndex => {

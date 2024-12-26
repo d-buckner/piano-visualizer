@@ -48,6 +48,16 @@ export default class Visualization {
         this.resizeObserver.observe(config.container);
     }
 
+    public startNote(midi: number, color: string, identifier?: string) {
+        this.roll.startNote(midi, color, identifier);
+        this.piano.keyDown(midi, color, identifier);
+    }
+
+    public endNote(midi: number, identifier?: string) {
+        this.roll.endNote(midi, identifier);
+        this.piano.keyUp(midi, identifier);
+    }
+
     public destroy() {
         this.resizeObserver.disconnect();
         this.app.destroy();
@@ -58,7 +68,6 @@ export default class Visualization {
         await this.app.init({
             background: backgroundColor,
             resizeTo: container,
-            antialias: true,
             preference: 'webgpu',
         });
 
@@ -73,5 +82,17 @@ export default class Visualization {
             this.piano.render();
             this.roll.render(delta);
         });
+
+        for (let i = 0; i < 100; i++) {
+            const color = '#5dadec';
+            const startTime = Math.random() * 30000;
+            const midi = Math.floor(Math.random() * 30);
+            setTimeout(() => {
+                this.startNote(midi, color);
+            }, startTime);
+            setTimeout(() => {
+                this.endNote(midi);
+            }, Math.floor(Math.random() * 1000) + startTime + 200);
+        }
     }
 }
