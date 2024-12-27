@@ -36,7 +36,9 @@ export default function renderVerticalResizer(config: Config): VerticalResizer {
 
     const upHandler = () => {
         isActive = false;
-        document.body.style.cursor = '';
+        if (document.body.style.cursor === 'ns-resize') {
+            document.body.style.cursor = '';
+        }
     };
 
     const moveHandler = (e: MouseEvent | TouchEvent) => {
@@ -52,6 +54,8 @@ export default function renderVerticalResizer(config: Config): VerticalResizer {
         if (!isActive || height < MIN_HEIGHT || height > clientHeight * MAX_HEIGHT_RATIO) {
             return;
         }
+
+        e.stopPropagation();
 
         setHeight(height);
         onResize(height);

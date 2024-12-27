@@ -24,6 +24,9 @@ export default class PianoController {
 
         globalEventTarget.on('globalmousemove', (e: FPE) => {
             if (this.mouseMidi === null) {
+                if (e.clientY > this.pianoY) {
+                    document.body.style.cursor = 'pointer';
+                }
                 return;
             }
 

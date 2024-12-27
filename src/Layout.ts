@@ -50,6 +50,7 @@ export default class Layout {
     private widthFactor: number;
     private heightFactor: number;
     private width: number;
+    private x: number;
     private diatonicRange: number;
 
     constructor(config: Config) {
@@ -57,6 +58,7 @@ export default class Layout {
         this.heightFactor = 1;
         this.width = config.width;
         this.height = config.height;
+        this.x = 0;
         this.pianoHeight = config.pianoHeight;
         this.updatePianoHeight(this.pianoHeight);
         this.diatonicRange = this.getRangeFromWidth();
@@ -72,6 +74,19 @@ export default class Layout {
             : newRangeFromWidth;
 
         this.setRange(targetRange);
+    }
+
+    public setX(x: number) {
+        this.x = x;
+    }
+
+    public getX(): number {
+        return this.x;
+    }
+
+    public getQuantizedX(x: number) {
+        const keyWidth = NATURAL_KEY_WIDTH * this.widthFactor;
+        return Math.round(x / keyWidth) * keyWidth;
     }
 
     public getTotalHeight(): number {

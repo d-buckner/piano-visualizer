@@ -1,7 +1,8 @@
 import {Container, Graphics, Ticker} from 'pixi.js';
-import Layout from './Layout';
+import Layout from '../Layout';
 
 const BORDER_COLOR = '#2d2e2e';
+const MIN_BLOCK_HEIGHT = 8;
 
 type Config = {
     container: Container;
@@ -29,7 +30,7 @@ type GraphicsOptions = {
 
 const RADIUS = 2;
 
-export default class Roll {
+export default class PianoRoll {
     config: Config;
     container: Container;
     blocks: Map<number, Block[]> = new Map();
@@ -90,70 +91,74 @@ export default class Roll {
     }
 
     public render(delta: Ticker) {
-        const distance = delta.deltaMS / 3;
-        this.blocks.forEach(blocks => {
-            const indexesToRemove: number[] = [];
-            blocks.forEach(block => {
-                block.graphics.clear();
-                const element = this.config.layout.getRollElement(block.midi);
-                const pianoY = this.config.layout.getPianoY();
-                block.y -= distance;
+        this.blocks.forEach(midiBlocks => {
+            this.renderMidiBlocks(midiBlocks, delta);
+        });
+    }
 
-                if (block.isActive) {
-                    block.height += distance;
-                    this.updateGraphics({
-                        x: element.x,
-                        y: block.y + pianoY,
-                        width: element.width,
-                        height: block.height,
-                        color: block.color,
-                        graphics: block.graphics,
-                    });
-                    return;
-                }
+    private renderMidiBlocks(blocks: Block[], delta: Ticker) {
+        const distance = delta.deltaMS / 5;
+        const indexesToRemove: number[] = [];
 
-                if (block.y + block.height + pianoY <= 0) {
-                    const blockIndex = blocks.findIndex(b => b === block);
-                    indexesToRemove.push(blockIndex);
-                    return;
-                }
+        blocks.forEach(block => {
+            block.graphics.clear();
+            const element = this.config.layout.getRollElement(block.midi);
+            const pianoY = this.config.layout.getPianoY();
+            block.y -= distance;
 
+            if (block.isActive) {
+                block.height += distance;
                 this.updateGraphics({
                     x: element.x,
                     y: block.y + pianoY,
                     width: element.width,
                     height: block.height,
                     color: block.color,
-                    graphics: block.graphics
+                    graphics: block.graphics,
                 });
-            });
+                return;
+            }
 
-            indexesToRemove.forEach(blockIndex => {
-                const block = blocks[blockIndex];
-                if (!block) {
-                    return;
-                }
-                block.graphics.destroy();
-                if (blocks.length === 1) {
-                    this.blocks.delete(block.midi);
-                    return;
-                }
-                blocks.splice(blockIndex, 1);
+            if (block.y + block.height + pianoY <= 0) {
+                // block is offscreen and needs to be marked for later cleanup
+                const blockIndex = blocks.findIndex(b => b === block);
+                indexesToRemove.push(blockIndex);
+                return;
+            }
+
+            this.updateGraphics({
+                x: element.x,
+                y: block.y + pianoY,
+                width: element.width,
+                height: Math.max(block.height, MIN_BLOCK_HEIGHT),
+                color: block.color,
+                graphics: block.graphics
             });
+        });
+
+        // cleanup blocks
+        indexesToRemove.forEach(blockIndex => {
+            const block = blocks[blockIndex];
+            if (!block) {
+                return;
+            }
+            block.graphics.destroy();
+            if (blocks.length === 1) {
+                this.blocks.delete(block.midi);
+                return;
+            }
+            blocks.splice(blockIndex, 1);
         });
     }
 
     private updateGraphics(options: GraphicsOptions) {
         const {graphics, x, y, width, height, color} = options;
-        const g = graphics ?? new Graphics();
-        g
+        return (graphics ?? new Graphics())
             .roundRect(x, y, width, height, RADIUS)
             .fill(color)
             .stroke({
                 width: 2,
                 color: BORDER_COLOR,
             });
-
-        return g;
     }
 }

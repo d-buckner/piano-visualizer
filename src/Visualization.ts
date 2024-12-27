@@ -1,8 +1,9 @@
-import {Application, ColorSource, Container} from 'pixi.js';
+import {Application, ColorSource, Container, Ticker} from 'pixi.js';
 import Layout from './Layout';
 import Piano from './Piano';
-import Roll from './Roll';
+import PianoRoll from './PianoRoll';
 import renderVerticalResizer, {VerticalResizer} from './verticalResizer';
+import VisualizationController from './VisualizationController';
 
 const DEFAULT_COLOR = '#5dadec';
 
@@ -16,9 +17,10 @@ export default class Visualization {
     private app: Application;
     private config: Config;
     private piano: Piano;
-    private roll: Roll;
+    private pianoRoll: PianoRoll;
     private layout: Layout;
     private container: Container;
+    private containerTargetX = 0;
     private verticalResizer: VerticalResizer;
     private resizeObserver: ResizeObserver;
 
@@ -38,14 +40,14 @@ export default class Visualization {
             onKeyDown: midi => this.startNote(midi, DEFAULT_COLOR),
             onKeyUp: midi => this.endNote(midi),
         });
-        this.roll = new Roll({
+        this.pianoRoll = new PianoRoll({
             container: this.container,
             layout: this.layout,
         });
         this.verticalResizer = renderVerticalResizer({
             container: config.container,
             initHeight: this.layout.getPianoHeight(),
-            onResize: pianoHeight => this.layout.updatePianoHeight(pianoHeight),
+            onResize: this.layout.updatePianoHeight.bind(this.layout),
         });
 
         this.app.stage.addChild(this.container);
@@ -58,12 +60,12 @@ export default class Visualization {
     }
 
     public startNote(midi: number, color: string, identifier?: string) {
-        this.roll.startNote(midi, color, identifier);
+        this.pianoRoll.startNote(midi, color, identifier);
         this.piano.keyDown(midi, color, identifier);
     }
 
     public endNote(midi: number, identifier?: string) {
-        this.roll.endNote(midi, identifier);
+        this.pianoRoll.endNote(midi, identifier);
         this.piano.keyUp(midi, identifier);
     }
 
@@ -81,11 +83,49 @@ export default class Visualization {
             preference: 'webgpu',
         });
 
+        new VisualizationController({
+            canvas: this.app.canvas,
+            layout: this.layout,
+            onContainerTargetXChange: x => this.containerTargetX = x,
+            onContainerXChange: x => this.container.x = x,
+        });
         container.appendChild(this.app.canvas);
 
         this.app.ticker.add(delta => {
             this.piano.render();
-            this.roll.render(delta);
+            this.pianoRoll.render(delta);
+            this.animateContainerX(delta);
         });
+    }
+
+    private animateContainerX(delta: Ticker) {
+        const deltaX = this.containerTargetX - this.container.x;
+        if (deltaX === 0) {
+            this.layout.setX(this.container.x);
+            return;
+        }
+
+        const step = delta.deltaMS;
+        // magic snap speed divisor (lower is faster)
+        const deltaDivisor = 400;
+        const deltaPower = 1.5;
+
+        // were entirely concerned about easing here
+        if (deltaX >= 1) {
+            this.container.x += Math.max(
+                (step * Math.pow(deltaX, deltaPower) / deltaDivisor),
+                1
+            );
+        }
+        if (deltaX <= -1) {
+            this.container.x -= Math.max(
+                (step * Math.pow(Math.abs(deltaX), deltaPower) / deltaDivisor),
+                1
+            );
+        }
+
+        if (-1 < deltaX && deltaX < 1) {
+            this.container.x = this.containerTargetX;
+        }
     }
 }
