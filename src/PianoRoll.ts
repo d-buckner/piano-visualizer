@@ -1,5 +1,5 @@
 import {Container, Graphics, Ticker} from 'pixi.js';
-import Layout from '../Layout';
+import Layout from './Layout';
 
 const BORDER_COLOR = '#2d2e2e';
 const MIN_BLOCK_HEIGHT = 8;
