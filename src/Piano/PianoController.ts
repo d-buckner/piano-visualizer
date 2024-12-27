@@ -54,7 +54,8 @@ export default class PianoController {
         this.pianoY = pianoY;
     }
 
-    private addKeyHandlers(graphic: Graphics, midi: number) {
+    private addKeyHandlers(graphic: Graphics, key: number) {
+        const midi = key + 21;
         graphic.eventMode = "static";
         graphic.on("mousedown", () => {
             this.options.onKeyDown(midi);
@@ -101,7 +102,7 @@ export default class PianoController {
                 this.options.onKeyUp(prevMidi);
             }
 
-            this.options.onKeyDown(midi);
+            this.options.onKeyDown(key);
             this.touchMidiById.set(pointerId, midi);
         });
 

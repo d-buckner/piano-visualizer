@@ -2,6 +2,8 @@ import Pitch from './Pitch';
 
 const NATURAL_KEY_WIDTH = 100;
 const NATURAL_KEY_HEIGHT = 250;
+// start view at middle c
+const DEFAULT_X_OFFSET = 35 * NATURAL_KEY_WIDTH;
 const ACCIDENTAL_KEY_HEIGHT = NATURAL_KEY_HEIGHT * 0.65;
 const ACCIDENTAL_KEY_WIDTH = NATURAL_KEY_WIDTH / 2;
 const OCTAVE_WIDTH = NATURAL_KEY_WIDTH * 7;
@@ -119,7 +121,7 @@ export default class Layout {
         const height = pitch.isNatural ? NATURAL_KEY_HEIGHT : ACCIDENTAL_KEY_HEIGHT;
 
         return {
-            x: x * this.widthFactor,
+            x: (x - DEFAULT_X_OFFSET) * this.widthFactor,
             width: width * this.widthFactor,
             height: height * this.heightFactor,
         };
@@ -137,7 +139,7 @@ export default class Layout {
 
 
         return {
-            x: (x + xOffset) * this.widthFactor,
+            x: (x + xOffset - DEFAULT_X_OFFSET) * this.widthFactor,
             width: width * this.widthFactor,
         };
     }

@@ -7,9 +7,13 @@ import VisualizationController from './VisualizationController';
 
 const DEFAULT_COLOR = '#5dadec';
 
+type KeyHandler = (midi: number) => void;
+
 type Config = {
     container: HTMLElement;
     backgroundColor?: ColorSource;
+    onKeyUp?: KeyHandler,
+    onKeyDown?: KeyHandler,
 }
 
 
@@ -37,8 +41,14 @@ export default class Visualization {
         this.piano = new Piano({
             container: this.container,
             layout: this.layout,
-            onKeyDown: midi => this.startNote(midi, DEFAULT_COLOR),
-            onKeyUp: midi => this.endNote(midi),
+            onKeyDown: midi => {
+                this.config.onKeyDown?.(midi);
+                this.startNote(midi, DEFAULT_COLOR);
+            },
+            onKeyUp: midi => {
+                this.config.onKeyUp?.(midi);
+                this.endNote(midi);
+            },
         });
         this.pianoRoll = new PianoRoll({
             container: this.container,

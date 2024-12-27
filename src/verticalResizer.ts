@@ -55,8 +55,6 @@ export default function renderVerticalResizer(config: Config): VerticalResizer {
             return;
         }
 
-        e.stopPropagation();
-
         setHeight(height);
         onResize(height);
     }

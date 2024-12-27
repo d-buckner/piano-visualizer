@@ -84,10 +84,10 @@ export default class Piano {
         const naturalContainer = new Container();
         const accidentalContainer = new Container();
 
-        for (let midi = 0; midi < 88; midi++) {
-            const pitch = new Pitch(midi);
+        for (let key = 0; key < 87; key++) {
+            const pitch = new Pitch(key + 21);
             const keyGraphic = this.createKeyGraphic(pitch);
-            this.graphics[midi] = keyGraphic;
+            this.graphics[key] = keyGraphic;
             const targetContainer = pitch.isNatural
                 ? naturalContainer
                 : accidentalContainer;
@@ -107,7 +107,7 @@ export default class Piano {
     private createKeyGraphic(pitch: Pitch) {
         const keyElement = this.layout.getKeyElement(pitch.midi);
         const radius = 4;
-        const graphic = this.graphics[pitch.midi];
+        const graphic = this.graphics[pitch.midi - 21];
         const activeKeys = this.activeKeys.get(pitch.midi);
         const activeKey = activeKeys?.[activeKeys.length - 1];
         const color = activeKey?.color;
