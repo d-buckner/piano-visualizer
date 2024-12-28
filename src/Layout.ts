@@ -64,7 +64,7 @@ export default class Layout {
         this.pianoHeight = config.pianoHeight;
         this.updatePianoHeight(this.pianoHeight);
         this.diatonicRange = this.getRangeFromWidth();
-        this.setRange(this.diatonicRange);
+        this.setDiatonicRange(this.diatonicRange);
     }
 
     public setWidth(width: number) {
@@ -75,7 +75,7 @@ export default class Layout {
             ? this.diatonicRange
             : newRangeFromWidth;
 
-        this.setRange(targetRange);
+        this.setDiatonicRange(targetRange);
     }
 
     public setX(x: number) {
@@ -103,10 +103,14 @@ export default class Layout {
         return this.height - this.pianoHeight;
     }
 
-    public setRange(diatonicRange: number) {
+    public setDiatonicRange(diatonicRange: number) {
         this.diatonicRange = diatonicRange;
         const visibleKeys = this.width / NATURAL_KEY_WIDTH;
         this.widthFactor = visibleKeys / diatonicRange;
+    }
+
+    public getDiatonicRange(): number {
+        return this.diatonicRange;
     }
 
     public updatePianoHeight(pianoHeight: number) {

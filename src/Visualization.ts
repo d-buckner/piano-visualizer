@@ -117,7 +117,7 @@ export default class Visualization {
 
         const step = delta.deltaMS;
         // magic snap speed divisor (lower is faster)
-        const deltaDivisor = 400;
+        const deltaDivisor = 600;
         const deltaPower = 1.5;
 
         // were entirely concerned about easing here

@@ -1,3 +1,4 @@
+import debounce from './debounce';
 import Layout from './Layout';
 
 type VisualizationControllerOptions = {
@@ -49,6 +50,8 @@ export default class VisualizationController {
         this.onTouchStart = this.onTouchStart.bind(this);
         this.onTouchEnd = this.onTouchEnd.bind(this);
         this.onTouchMove = this.onTouchMove.bind(this);
+        this.onWheel = this.onWheel.bind(this);
+        this.onWheelSettled = debounce(this.onWheelSettled.bind(this), 50);
 
         const ael = this.options.canvas.addEventListener;
         ael('mousedown', this.onMouseDown);
@@ -58,6 +61,7 @@ export default class VisualizationController {
         ael('touchstart', this.onTouchStart);
         ael('touchend', this.onTouchEnd);
         ael('touchmove', this.onTouchMove);
+        ael('wheel', this.onWheel);
     }
 
     public dispose() {
@@ -70,6 +74,7 @@ export default class VisualizationController {
         rel('touchstart', this.onTouchStart);
         rel('touchend', this.onTouchEnd);
         rel('touchmove', this.onTouchMove);
+        rel('wheel', this.onWheel);
     }
 
     private onMouseDown(e: MouseEvent) {
@@ -135,6 +140,24 @@ export default class VisualizationController {
         if (touchEntry) {
             this.updatePointerX(touchEntry.initialClientX, touch.clientX, touchEntry.initialContainerX);
         }
+    }
+
+    private onWheel(e: WheelEvent) {
+        const {
+            layout,
+            onContainerXChange,
+            onContainerTargetXChange,
+        } = this.options;
+        const x = layout.getX() - e.deltaX;
+        onContainerXChange(x);
+        onContainerTargetXChange(x);
+        this.onWheelSettled();
+    }
+
+    private onWheelSettled() {
+        const {layout, onContainerTargetXChange} = this.options;
+        this.targetContainerX = layout.getQuantizedX(layout.getX());
+        onContainerTargetXChange(this.targetContainerX);
     }
 
     private updatePointerX(
