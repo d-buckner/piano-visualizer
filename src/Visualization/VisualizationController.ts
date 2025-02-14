@@ -9,13 +9,17 @@ type VisualizationControllerOptions = {
   onContainerXChange: (x: number) => void;
 };
 
+type MouseDownContext = {
+    clientX: number;
+    clientY: number;
+    containerX: number;
+    pianoHeight: number;
+    section: Section;
+};
+
 type ActiveMouseContext = {
   isDown: true;
-  init: {
-    clientX: number;
-    containerX: number;
-    section: Section;
-  };
+  init: MouseDownContext
 };
 
 type InactiveMouseContext = {
@@ -23,11 +27,7 @@ type InactiveMouseContext = {
 };
 
 type TouchStartContext = {
-  [touchId: string]: {
-    clientX: number;
-    containerX: number;
-    section: Section;
-  };
+  [touchId: string]: MouseDownContext;
 };
 
 type MouseContext = ActiveMouseContext | InactiveMouseContext;
@@ -91,8 +91,10 @@ export default class VisualizationController {
       isDown: true,
       init: {
         clientX: e.clientX,
+        clientY: e.clientY,
         containerX: layout.getX(),
         section: layout.getSection(e.clientY),
+        pianoHeight: layout.getPianoHeight(),
       },
     };
   }
@@ -115,8 +117,14 @@ export default class VisualizationController {
       return;
     }
 
-    if (this.mouseContext.init.section === Section.RESIZER) {
-      layout.updatePianoHeight(e.clientY);
+    const {
+      section,
+      clientY: initClientY,
+      pianoHeight,
+    } = this.mouseContext.init;
+    if (section === Section.RESIZER) {
+      const yDelta = initClientY - e.clientY;
+      layout.updatePianoHeight(pianoHeight + yDelta);
       return;
     }
 
@@ -141,8 +149,10 @@ export default class VisualizationController {
 
       this.touchContext[touch.identifier] = {
         clientX: touch.clientX,
+        clientY: touch.clientY,
         containerX: layout.getX(),
         section: section,
+        pianoHeight: layout.getPianoHeight(),
       };
     }
   }

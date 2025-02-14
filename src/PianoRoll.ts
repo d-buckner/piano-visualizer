@@ -99,7 +99,7 @@ export default class PianoRoll {
   private renderMidiBlocks(blocks: Block[], delta: Ticker) {
     const distance = delta.deltaMS / 5;
     // buffer for block indexes marked for deletion
-    const indexesToRemove: number[] = [];
+    const blockDeletionBuffer: number[] = [];
 
     blocks.forEach((block) => {
       block.graphics.clear();
@@ -123,7 +123,7 @@ export default class PianoRoll {
       if (block.y + block.height + pianoRollHeight <= 0) {
         // block is offscreen and needs to be marked for later cleanup
         const blockIndex = blocks.findIndex((b) => b === block);
-        indexesToRemove.push(blockIndex);
+        blockDeletionBuffer.push(blockIndex);
         return;
       }
 
@@ -138,7 +138,7 @@ export default class PianoRoll {
     });
 
     // flush buffer of blocks marked for removal
-    indexesToRemove.forEach((blockIndex) => {
+    blockDeletionBuffer.forEach((blockIndex) => {
       const block = blocks[blockIndex];
       if (!block) {
         return;

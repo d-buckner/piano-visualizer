@@ -2,7 +2,6 @@ import { Application, ColorSource, Container, Ticker } from "pixi.js";
 import Layout from "../Layout";
 import Piano from "../Piano";
 import PianoRoll from "../PianoRoll";
-import renderVerticalResizer, { VerticalResizer } from "../verticalResizer";
 import VisualizationController from "./VisualizationController";
 
 const DEFAULT_COLOR = "#5dadec";
@@ -73,7 +72,6 @@ export default class Visualization {
   }
 
   public destroy() {
-    this.verticalResizer.dispose();
     this.resizeObserver.disconnect();
     this.app.destroy();
   }
