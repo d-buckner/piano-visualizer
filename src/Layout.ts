@@ -17,8 +17,6 @@ const BREAKPOINT_RANGES = [
   [1200, 12],
   [1600, 16],
 ];
-const RESIZER_HEIGHT = 12;
-const HALF_RESIZER_HEIGHT = RESIZER_HEIGHT / 2;
 
 export enum Section {
   PIANO_ROLL = "PIANO_ROLL",
@@ -85,7 +83,7 @@ export default class Layout {
   }
 
   public getPianoRollHeight() {
-    return this.getPianoY() - HALF_RESIZER_HEIGHT;
+    return this.getPianoY();
   }
 
   public getSection(y: number): Section {
@@ -93,7 +91,7 @@ export default class Layout {
       return Section.PIANO_ROLL;
     }
 
-    if (y > this.getPianoY() + HALF_RESIZER_HEIGHT) {
+    if (y > this.getPianoY()) {
       return Section.PIANO;
     }
 
