@@ -1,12 +1,12 @@
 {
   "name": "piano-visualizer",
   "author": "d-buckner",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "esbuild src/index.ts --bundle --format=esm --outfile=dist/index.js"
+    "build": "esbuild src/index.ts --bundle --format=esm --outfile=dist/index.js && tsc --emitDeclarationOnly"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",
