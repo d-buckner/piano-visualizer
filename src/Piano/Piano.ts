@@ -1,7 +1,7 @@
-import {ColorSource, Container, Graphics} from "pixi.js";
-import Layout from "../Layout";
-import Pitch from "../Pitch";
-import PianoController from "./PianoController";
+import {ColorSource, Container, Graphics} from 'pixi.js';
+import Layout from '../Layout';
+import Pitch from '../Pitch';
+import PianoController from './PianoController';
 
 type Config = {
     container: Container;
@@ -116,8 +116,8 @@ export default class Piano {
         if (pitch.isNatural) {
             return graphic
                 .roundRect(keyElement.x, 0, keyElement.width, keyElement.height, radius)
-                .fill(color ?? "white")
-                .stroke("black");
+                .fill(color ?? 'white')
+                .stroke('black');
         }
 
         const shadowMargin = color ? 2 : 4;
@@ -126,7 +126,7 @@ export default class Piano {
             : keyElement.height / 1.0625;
         return graphic
             .roundRect(keyElement.x, 0, keyElement.width, keyElement.height, radius)
-            .fill("black")
+            .fill('black')
             .roundRect(
                 keyElement.x + shadowMargin,
                 0,
@@ -134,6 +134,6 @@ export default class Piano {
                 shadowHeight,
                 radius * 1.5,
             )
-            .fill(color ?? "#424242");
+            .fill(color ?? '#424242');
     }
 }

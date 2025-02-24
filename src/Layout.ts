@@ -1,4 +1,4 @@
-import Pitch from "./Pitch";
+import Pitch from './Pitch';
 
 const NATURAL_KEY_WIDTH = 100;
 const NATURAL_KEY_HEIGHT = 250;
@@ -19,9 +19,8 @@ const BREAKPOINT_RANGES = [
 ];
 
 export enum Section {
-  PIANO_ROLL = "PIANO_ROLL",
-  RESIZER = "RESIZER",
-  PIANO = "PIANO",
+  PIANO_ROLL = 'PIANO_ROLL',
+  PIANO = 'PIANO',
 }
 
 type KeyElement = {
@@ -91,11 +90,7 @@ export default class Layout {
       return Section.PIANO_ROLL;
     }
 
-    if (y > this.getPianoY()) {
-      return Section.PIANO;
-    }
-
-    return Section.RESIZER;
+    return Section.PIANO;
   }
 
   public getQuantizedX(x: number) {

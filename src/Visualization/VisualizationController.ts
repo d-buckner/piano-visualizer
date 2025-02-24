@@ -1,6 +1,6 @@
-import debounce from "../lib/debounce";
-import Layout, { Section } from "../Layout";
-import setCursor, { Cursor } from "../lib/setCursor";
+import debounce from '../lib/debounce';
+import Layout, { Section } from '../Layout';
+import setCursor, { Cursor } from '../lib/setCursor';
 
 type VisualizationControllerOptions = {
   canvas: HTMLCanvasElement;

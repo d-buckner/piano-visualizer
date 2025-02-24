@@ -1,5 +1,5 @@
-import { FederatedPointerEvent, Graphics } from "pixi.js";
-import setCursor, { Cursor } from "../lib/setCursor";
+import { FederatedPointerEvent, Graphics } from 'pixi.js';
+import setCursor, { Cursor } from '../lib/setCursor';
 
 type Options = {
   graphics: Graphics[];
@@ -23,7 +23,7 @@ export default class PianoController {
     this.options.graphics.forEach(this.addKeyHandlers.bind(this));
     const globalEventTarget = this.options.graphics[0];
 
-    globalEventTarget.on("globalmousemove", (e: FPE) => {
+    globalEventTarget.on('globalmousemove', (e: FPE) => {
       if (this.mouseMidi === null) {
         if (e.clientY > this.pianoY) {
           setCursor(Cursor.POINTER);
@@ -37,7 +37,7 @@ export default class PianoController {
       }
     });
 
-    globalEventTarget.on("globaltouchmove", (e: FPE) => {
+    globalEventTarget.on('globaltouchmove', (e: FPE) => {
       const { pointerId } = e;
       const midi = this.touchMidiById.get(pointerId);
       if (midi === undefined) {
@@ -57,14 +57,14 @@ export default class PianoController {
 
   private addKeyHandlers(graphic: Graphics, key: number) {
     const midi = key + 21;
-    graphic.eventMode = "static";
-    graphic.on("mousedown", () => {
+    graphic.eventMode = 'static';
+    graphic.on('mousedown', () => {
       this.options.onKeyDown(midi);
       this.isMouseDown = true;
       this.mouseMidi = midi;
     });
 
-    graphic.on("mouseup", () => {
+    graphic.on('mouseup', () => {
       this.isMouseDown = false;
       if (this.mouseMidi === null) {
         return;
@@ -74,7 +74,7 @@ export default class PianoController {
       this.mouseMidi = null;
     });
 
-    graphic.on("mouseenter", () => {
+    graphic.on('mouseenter', () => {
       if (!this.isMouseDown || this.mouseMidi === midi) {
         return;
       }
@@ -87,12 +87,12 @@ export default class PianoController {
       this.mouseMidi = midi;
     });
 
-    graphic.on("touchstart", (e: FPE) => {
+    graphic.on('touchstart', (e: FPE) => {
       this.touchMidiById.set(e.pointerId, midi);
       this.options.onKeyDown(midi);
     });
 
-    graphic.on("touchmove", (e: FPE) => {
+    graphic.on('touchmove', (e: FPE) => {
       const { pointerId } = e;
       const prevMidi = this.touchMidiById.get(pointerId);
       if (prevMidi === midi) {
@@ -107,7 +107,7 @@ export default class PianoController {
       this.touchMidiById.set(pointerId, midi);
     });
 
-    graphic.on("touchend", (e: FPE) => {
+    graphic.on('touchend', (e: FPE) => {
       this.touchMidiById.delete(e.pointerId);
       this.options.onKeyUp(midi);
     });

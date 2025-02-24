@@ -1,10 +1,10 @@
-import { Application, ColorSource, Container, Ticker } from "pixi.js";
-import Layout from "../Layout";
-import Piano from "../Piano";
-import PianoRoll from "../PianoRoll";
-import VisualizationController from "./VisualizationController";
+import { Application, ColorSource, Container, Ticker } from 'pixi.js';
+import Layout from '../Layout';
+import Piano from '../Piano';
+import PianoRoll from '../PianoRoll';
+import VisualizationController from './VisualizationController';
 
-const DEFAULT_COLOR = "#5dadec";
+const DEFAULT_COLOR = '#5dadec';
 
 type KeyHandler = (midi: number) => void;
 
@@ -59,6 +59,7 @@ export default class Visualization {
       this.layout.setWidth(entry.contentRect.width);
     });
     this.resizeObserver.observe(config.container);
+    config.container.setAttribute('style', 'overscroll-behavior-x: none; user-select: none;');
   }
 
   public startNote(midi: number, color: string, identifier?: string) {
@@ -81,7 +82,7 @@ export default class Visualization {
     await this.app.init({
       background: backgroundColor,
       resizeTo: container,
-      preference: "webgpu",
+      preference: 'webgpu',
     });
 
     new VisualizationController({
