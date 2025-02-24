@@ -1,4 +1,4 @@
-import { Application, ColorSource, Container, Ticker } from 'pixi.js';
+import { Application, ApplicationOptions, ColorSource, Container, Ticker } from 'pixi.js';
 import Layout from '../Layout';
 import Piano from '../Piano';
 import PianoRoll from '../PianoRoll';
@@ -79,11 +79,17 @@ export default class Visualization {
 
   private async init() {
     const { container, backgroundColor } = this.config;
-    await this.app.init({
-      background: backgroundColor,
+    const options: Partial<ApplicationOptions> = {
       resizeTo: container,
       preference: 'webgpu',
-    });
+    };
+    if (backgroundColor === 'transparent') {
+      options.background = backgroundColor;
+    } else {
+      options.backgroundAlpha = 0;
+    }
+  
+    await this.app.init(options);
 
     new VisualizationController({
       canvas: this.app.canvas,
