@@ -28,6 +28,7 @@ export default class Visualization {
   constructor(config: Config) {
     this.config = config;
     this.app = new Application();
+    this.app.resizeTo = config.container;
     this.container = new Container();
     this.layout = new Layout({
       width: config.container.clientWidth,
@@ -56,7 +57,9 @@ export default class Visualization {
     this.init();
 
     this.resizeObserver = new ResizeObserver(([entry]) => {
-      this.layout.setWidth(entry.contentRect.width);
+      const { width } = entry.contentRect;
+      this.layout.setWidth(width);
+      this.app.screen.width = width;
     });
     this.resizeObserver.observe(config.container);
     config.container.setAttribute('style', 'overscroll-behavior-x: none; user-select: none;');
@@ -88,7 +91,7 @@ export default class Visualization {
     } else {
       options.background = backgroundColor;
     }
-  
+
     await this.app.init(options);
 
     new VisualizationController({
