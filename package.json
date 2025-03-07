@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "esbuild src/index.ts --bundle --format=esm --outfile=dist/index.js && tsc --emitDeclarationOnly",
-    "build:demo": "esbuild src/demo.ts --bundle --format=esm --outfile=dist/demo.js && cp demo.html ./dist/index.html"
+    "build:demo": "esbuild src/demo.ts --bundle --format=esm --outfile=dist/demo.js && cp demo.html ./dist/index.html && cp style.css ./dist/"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",
