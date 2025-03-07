@@ -111,22 +111,9 @@ export default class VisualizationController {
         setCursor(Cursor.GRAB);
       }
 
-      if (section === Section.RESIZER) {
-        setCursor(Cursor.NS_RESIZE);
-      }
       return;
     }
 
-    const {
-      section,
-      clientY: initClientY,
-      pianoHeight,
-    } = this.mouseContext.init;
-    if (section === Section.RESIZER) {
-      const yDelta = initClientY - e.clientY;
-      layout.updatePianoHeight(pianoHeight + yDelta);
-      return;
-    }
 
     setCursor(Cursor.GRABBING);
 
@@ -181,10 +168,6 @@ export default class VisualizationController {
       return;
     }
 
-    if (touchEntry.section === Section.RESIZER) {
-      this.options.layout.updatePianoHeight(touch.clientY);
-      return;
-    }
 
     this.updatePointerX(
       touchEntry.clientX,

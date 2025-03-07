@@ -84,9 +84,9 @@ export default class Visualization {
       preference: 'webgpu',
     };
     if (backgroundColor === 'transparent') {
-      options.background = backgroundColor;
-    } else {
       options.backgroundAlpha = 0;
+    } else {
+      options.background = backgroundColor;
     }
   
     await this.app.init(options);
