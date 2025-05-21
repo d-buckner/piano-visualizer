@@ -1,4 +1,10 @@
-import { Application, ApplicationOptions, ColorSource, Container, Ticker } from 'pixi.js';
+import {
+  type ApplicationOptions,
+  type ColorSource,
+  type Ticker,
+  Application,
+  Container,
+} from 'pixi.js';
 import Layout from '../Layout';
 import Piano from '../Piano';
 import PianoRoll from '../PianoRoll';
@@ -21,15 +27,21 @@ export default class Visualization {
   private piano: Piano;
   private pianoRoll: PianoRoll;
   private layout: Layout;
-  private container: Container;
+  private htmlContainer: HTMLDivElement;
+  private renderContainer: Container;
   private containerTargetX = 0;
   private resizeObserver: ResizeObserver;
 
   constructor(config: Config) {
     this.config = config;
     this.app = new Application();
+    this.htmlContainer = document.createElement('div');
+    this.htmlContainer.setAttribute(
+      'style',
+      'overscroll-behavior-x: none; user-select: none; position: absolute; width: 100%; height: 100%;'
+    );
     this.app.resizeTo = config.container;
-    this.container = new Container();
+    this.renderContainer = new Container();
     this.layout = new Layout({
       width: config.container.clientWidth,
       height: config.container.clientHeight,
@@ -37,7 +49,7 @@ export default class Visualization {
     });
 
     this.piano = new Piano({
-      container: this.container,
+      container: this.renderContainer,
       layout: this.layout,
       onKeyDown: (midi) => {
         this.config.onKeyDown?.(midi);
@@ -49,20 +61,15 @@ export default class Visualization {
       },
     });
     this.pianoRoll = new PianoRoll({
-      container: this.container,
+      container: this.renderContainer,
       layout: this.layout,
     });
 
-    this.app.stage.addChild(this.container);
+    this.app.stage.addChild(this.renderContainer);
     this.init();
 
-    this.resizeObserver = new ResizeObserver(([entry]) => {
-      const { width } = entry.contentRect;
-      this.layout.setWidth(width);
-      this.app.screen.width = width;
-    });
+    this.resizeObserver = new ResizeObserver(([{contentRect}]) => this.layout.setWidth(contentRect.width));
     this.resizeObserver.observe(config.container);
-    config.container.setAttribute('style', 'overscroll-behavior-x: none; user-select: none;');
   }
 
   public startNote(midi: number, color: string, identifier?: string) {
@@ -98,9 +105,10 @@ export default class Visualization {
       canvas: this.app.canvas,
       layout: this.layout,
       onContainerTargetXChange: (x) => (this.containerTargetX = x),
-      onContainerXChange: (x) => (this.container.x = x),
+      onContainerXChange: (x) => (this.renderContainer.x = x),
     });
-    container.appendChild(this.app.canvas);
+    this.htmlContainer.appendChild(this.app.canvas);
+    container.appendChild(this.htmlContainer);
 
     this.app.ticker.add((delta) => {
       this.piano.render();
@@ -110,9 +118,9 @@ export default class Visualization {
   }
 
   private animateContainerX(delta: Ticker) {
-    const deltaX = this.containerTargetX - this.container.x;
+    const deltaX = this.containerTargetX - this.renderContainer.x;
     if (deltaX === 0) {
-      this.layout.setX(this.container.x);
+      this.layout.setX(this.renderContainer.x);
       return;
     }
 
@@ -123,20 +131,20 @@ export default class Visualization {
 
     // were entirely concerned about easing here
     if (deltaX >= 1) {
-      this.container.x += Math.max(
+      this.renderContainer.x += Math.max(
         (step * Math.pow(deltaX, deltaPower)) / deltaDivisor,
         1,
       );
     }
     if (deltaX <= -1) {
-      this.container.x -= Math.max(
+      this.renderContainer.x -= Math.max(
         (step * Math.pow(Math.abs(deltaX), deltaPower)) / deltaDivisor,
         1,
       );
     }
 
     if (-1 < deltaX && deltaX < 1) {
-      this.container.x = this.containerTargetX;
+      this.renderContainer.x = this.containerTargetX;
     }
   }
 }

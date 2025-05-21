@@ -5,3 +5,5 @@ style.css
 tsconfig.json
 index.html
 vite*
+.github
+.idea
