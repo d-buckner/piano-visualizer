@@ -73,6 +73,10 @@ export default class Layout {
     this.setDiatonicRange(targetRange);
   }
 
+  public setHeight(height: number) {
+    this.height = height;
+  }
+
   public setX(x: number) {
     this.x = x;
   }

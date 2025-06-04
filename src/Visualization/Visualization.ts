@@ -68,7 +68,10 @@ export default class Visualization {
     this.app.stage.addChild(this.renderContainer);
     this.init();
 
-    this.resizeObserver = new ResizeObserver(([{contentRect}]) => this.layout.setWidth(contentRect.width));
+    this.resizeObserver = new ResizeObserver(([{ contentRect }]) => {
+      this.layout.setWidth(contentRect.width);
+      this.layout.setHeight(contentRect.height);
+    });
     this.resizeObserver.observe(config.container);
   }
 
