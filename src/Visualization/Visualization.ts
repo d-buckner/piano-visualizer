@@ -38,7 +38,17 @@ export default class Visualization {
     this.htmlContainer = document.createElement('div');
     this.htmlContainer.setAttribute(
       'style',
-      'overscroll-behavior-x: none; user-select: none; position: absolute; width: 100%; height: 100%;'
+      `
+        overscroll-behavior-x: none;
+        user-select: none;
+        touch-action: none;
+        -webkit-touch-callout: none;
+        -webkit-text-size-adjust: none;
+        -webkit-user-select: none;
+        position: absolute;
+        width: 100%;
+        height: 100%;
+      `
     );
     this.app.resizeTo = config.container;
     this.renderContainer = new Container();
