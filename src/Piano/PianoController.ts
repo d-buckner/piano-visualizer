@@ -103,7 +103,7 @@ export default class PianoController {
         this.options.onKeyUp(prevMidi);
       }
 
-      this.options.onKeyDown(key);
+      this.options.onKeyDown(midi);
       this.touchMidiById.set(pointerId, midi);
     });
 
