@@ -16,7 +16,9 @@ const BREAKPOINT_RANGES = [
   [700, 8],
   [1200, 12],
   [1600, 16],
-];
+] as const;
+const MIN_X = NATURAL_KEY_WIDTH * -12;
+const MAX_X = NATURAL_KEY_WIDTH * 23;
 
 export enum Section {
   PIANO_ROLL = 'PIANO_ROLL',
@@ -78,11 +80,18 @@ export default class Layout {
   }
 
   public setX(x: number) {
-    this.x = x;
+    this.x = this.getClampedX(x);
   }
 
   public getX(): number {
     return this.x;
+  }
+
+  public getClampedX(x: number): number {
+    return Math.max(
+      MIN_X * this.widthFactor,
+      Math.min(MAX_X * this.widthFactor, x)
+    );
   }
 
   public getPianoRollHeight() {

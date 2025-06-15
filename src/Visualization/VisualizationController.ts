@@ -46,7 +46,7 @@ export default class VisualizationController {
       isDown: false,
     };
 
-    this.onWheelSettled = debounce(this.onWheelSettled.bind(this), 50);
+    this.onWheelSettled = debounce(this.onWheelSettled.bind(this), 30);
 
     this.eventListeners = {
       mousedown: this.onMouseDown,
@@ -60,7 +60,14 @@ export default class VisualizationController {
     };
 
     this.abortController = new AbortController();
+    this.initEventListeners();
+  }
 
+  public dispose() {
+    this.abortController.abort();
+  }
+
+  private initEventListeners() {
     Object.entries(this.eventListeners).forEach(([eventType, handler]) => {
       this.options.canvas.addEventListener(
         eventType,
@@ -68,10 +75,6 @@ export default class VisualizationController {
         { signal: this.abortController.signal }
       );
     });
-  }
-
-  public dispose() {
-    this.abortController.abort();
   }
 
   private onMouseDown(e: MouseEvent) {
@@ -173,7 +176,7 @@ export default class VisualizationController {
   private onWheel(e: WheelEvent) {
     const { layout, onContainerXChange, onContainerTargetXChange } =
       this.options;
-    const x = layout.getX() - e.deltaX;
+    const x = layout.getClampedX(layout.getX() - e.deltaX);
     onContainerXChange(x);
     onContainerTargetXChange(x);
     this.onWheelSettled();
@@ -193,8 +196,7 @@ export default class VisualizationController {
     const { layout, onContainerXChange, onContainerTargetXChange } =
       this.options;
     const deltaX = currentClientX - initialClientX;
-    const rawTargetX = initialContainerX + deltaX;
-    const x = Math.min(rawTargetX, 0);
+    const x = layout.getClampedX(initialContainerX + deltaX);
     this.targetContainerX = layout.getQuantizedX(x);
     onContainerXChange(x);
     onContainerTargetXChange(x);
