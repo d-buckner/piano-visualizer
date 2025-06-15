@@ -130,14 +130,14 @@ export default class Visualization {
     });
   }
 
-  private animateContainerX(delta: Ticker) {
+  private animateContainerX(ticker: Ticker) {
     const deltaX = this.containerTargetX - this.renderContainer.x;
     if (deltaX === 0) {
       this.layout.setX(this.renderContainer.x);
       return;
     }
 
-    const step = delta.deltaMS;
+    const step = ticker.deltaMS;
     // magic snap speed divisor (lower is faster)
     const deltaDivisor = 600;
     const deltaPower = 1.5;
@@ -149,6 +149,7 @@ export default class Visualization {
         1,
       );
     }
+
     if (deltaX <= -1) {
       this.renderContainer.x -= Math.max(
         (step * Math.pow(Math.abs(deltaX), deltaPower)) / deltaDivisor,

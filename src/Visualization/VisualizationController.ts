@@ -10,11 +10,11 @@ type VisualizationControllerOptions = {
 };
 
 type MouseDownContext = {
-    clientX: number;
-    clientY: number;
-    containerX: number;
-    pianoHeight: number;
-    section: Section;
+  clientX: number;
+  clientY: number;
+  containerX: number;
+  pianoHeight: number;
+  section: Section;
 };
 
 type ActiveMouseContext = {
@@ -38,6 +38,7 @@ export default class VisualizationController {
   private touchContext: TouchStartContext = {};
   private targetContainerX: number = 0;
   private eventListeners: Record<string, Function>;
+  private abortController: AbortController;
 
   constructor(options: VisualizationControllerOptions) {
     this.options = options;
@@ -45,14 +46,6 @@ export default class VisualizationController {
       isDown: false,
     };
 
-    this.onMouseDown = this.onMouseDown.bind(this);
-    this.onMouseUp = this.onMouseUp.bind(this);
-    this.onMouseMove = this.onMouseMove.bind(this);
-    this.onMouseLeave = this.onMouseLeave.bind(this);
-    this.onTouchStart = this.onTouchStart.bind(this);
-    this.onTouchEnd = this.onTouchEnd.bind(this);
-    this.onTouchMove = this.onTouchMove.bind(this);
-    this.onWheel = this.onWheel.bind(this);
     this.onWheelSettled = debounce(this.onWheelSettled.bind(this), 50);
 
     this.eventListeners = {
@@ -66,18 +59,19 @@ export default class VisualizationController {
       wheel: this.onWheel,
     };
 
+    this.abortController = new AbortController();
+
     Object.entries(this.eventListeners).forEach(([eventType, handler]) => {
-      this.options.canvas.addEventListener(eventType, handler as EventListener);
+      this.options.canvas.addEventListener(
+        eventType,
+        handler.bind(this) as EventListener,
+        { signal: this.abortController.signal }
+      );
     });
   }
 
   public dispose() {
-    Object.entries(this.eventListeners).forEach(([eventType, handler]) => {
-      this.options.canvas.removeEventListener(
-        eventType,
-        handler as EventListener,
-      );
-    });
+    this.abortController.abort();
   }
 
   private onMouseDown(e: MouseEvent) {

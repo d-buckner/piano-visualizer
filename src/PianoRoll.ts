@@ -90,14 +90,14 @@ export default class PianoRoll {
     }
   }
 
-  public render(delta: Ticker) {
+  public render(ticker: Ticker) {
     this.blocks.forEach((midiBlocks) => {
-      this.renderMidiBlocks(midiBlocks, delta);
+      this.renderMidiBlocks(midiBlocks, ticker);
     });
   }
 
-  private renderMidiBlocks(blocks: Block[], delta: Ticker) {
-    const distance = delta.deltaMS / 5;
+  private renderMidiBlocks(blocks: Block[], ticker: Ticker) {
+    const distance = ticker.deltaMS / 5;
     // buffer for block indexes marked for deletion
     const blockDeletionBuffer: number[] = [];
 
