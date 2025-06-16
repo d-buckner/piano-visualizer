@@ -1,7 +1,7 @@
 {
   "name": "piano-visualizer",
   "author": "d-buckner",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
