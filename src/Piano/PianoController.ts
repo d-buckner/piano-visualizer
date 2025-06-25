@@ -1,4 +1,4 @@
-import { FederatedPointerEvent, Graphics } from 'pixi.js';
+import { type FederatedPointerEvent, Graphics } from 'pixi.js';
 import setCursor, { Cursor } from '../lib/setCursor';
 
 type Options = {

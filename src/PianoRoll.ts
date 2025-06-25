@@ -1,4 +1,4 @@
-import { Container, Graphics, Ticker } from 'pixi.js';
+import { Container, Graphics, type Ticker } from 'pixi.js';
 import Layout from './Layout';
 
 const BORDER_COLOR = '#2d2e2e';

@@ -1,4 +1,4 @@
-import {ColorSource, Container, Graphics} from 'pixi.js';
+import {type ColorSource, Container, Graphics} from 'pixi.js';
 import Layout from '../Layout';
 import Pitch from '../Pitch';
 import PianoController from './PianoController';
