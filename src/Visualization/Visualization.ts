@@ -9,8 +9,11 @@ import Layout from '../Layout';
 import Piano from '../Piano';
 import PianoRoll from '../PianoRoll';
 import VisualizationController from './VisualizationController';
+import applyStyle from '../lib/applyStyle';
 
 const DEFAULT_COLOR = '#5dadec';
+const EASING_X_DELTA_DIVISOR = 600; // magic snap speed divisor (lower is faster)
+const EASING_X_DELTA_POW = 1.5;
 
 type KeyHandler = (midi: number) => void;
 
@@ -36,20 +39,6 @@ export default class Visualization {
     this.config = config;
     this.app = new Application();
     this.htmlContainer = document.createElement('div');
-    this.htmlContainer.setAttribute(
-      'style',
-      `
-        overscroll-behavior-x: none;
-        user-select: none;
-        touch-action: none;
-        -webkit-touch-callout: none;
-        -webkit-text-size-adjust: none;
-        -webkit-user-select: none;
-        position: absolute;
-        width: 100%;
-        height: 100%;
-      `
-    );
     this.app.resizeTo = config.container;
     this.renderContainer = new Container();
     this.layout = new Layout({
@@ -120,8 +109,9 @@ export default class Visualization {
       onContainerTargetXChange: (x) => (this.containerTargetX = x),
       onContainerXChange: (x) => (this.renderContainer.x = x),
     });
-    this.htmlContainer.appendChild(this.app.canvas);
-    container.appendChild(this.htmlContainer);
+    this.htmlContainer.append(this.app.canvas);
+    this.htmlContainer.id = applyStyle();
+    container.append(this.htmlContainer);
 
     this.app.ticker.add((delta) => {
       this.piano.render();
@@ -130,35 +120,31 @@ export default class Visualization {
     });
   }
 
-  private animateContainerX(ticker: Ticker) {
+  private animateContainerX({ deltaMS }: Ticker) {
     const deltaX = this.containerTargetX - this.renderContainer.x;
     if (deltaX === 0) {
       this.layout.setX(this.renderContainer.x);
       return;
     }
 
-    const step = ticker.deltaMS;
-    // magic snap speed divisor (lower is faster)
-    const deltaDivisor = 600;
-    const deltaPower = 1.5;
-
     // were entirely concerned about easing here
     if (deltaX >= 1) {
-      this.renderContainer.x += Math.max(
-        (step * Math.pow(deltaX, deltaPower)) / deltaDivisor,
-        1,
-      );
+      this.renderContainer.x += this.getEasingX(deltaX, deltaMS);
+      return;
     }
 
     if (deltaX <= -1) {
-      this.renderContainer.x -= Math.max(
-        (step * Math.pow(Math.abs(deltaX), deltaPower)) / deltaDivisor,
-        1,
-      );
+      this.renderContainer.x -= this.getEasingX(deltaX, deltaMS);
+      return;
     }
 
-    if (-1 < deltaX && deltaX < 1) {
-      this.renderContainer.x = this.containerTargetX;
-    }
+    this.renderContainer.x = this.containerTargetX;
+  }
+
+  private getEasingX(deltaX: number, step: number): number {
+    return Math.max(
+      (step * Math.pow(Math.abs(deltaX), EASING_X_DELTA_POW)) / EASING_X_DELTA_DIVISOR,
+      1
+    );
   }
 }
