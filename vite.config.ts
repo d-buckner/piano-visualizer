@@ -1,24 +1,18 @@
 import { defineConfig } from 'vite';
-import dts from 'vite-plugin-dts';
-import terser from '@rollup/plugin-terser';
+import getProdConfig from './config/prod.config';
+import getDevConfig from './config/dev.config';
 
 
-export default defineConfig({
-  plugins: [
-    dts({
-      insertTypesEntry: true,
-      rollupTypes: true,
-    }),
-  ],
-  build: {
-    rollupOptions: {
-      plugins: [terser() as any]
-    },
-    lib: {
-      entry: 'src/index.ts',
-      name: 'piano-visualizer',
-      fileName: 'index',
-      formats: ['es'],
-    },
-  },
+const MODE_CONFIG_GETTERS = {
+  production: getProdConfig,
+  development: getDevConfig,
+} as const
+
+export default defineConfig(({ mode }) => {
+  const configGetter = MODE_CONFIG_GETTERS[mode];
+  if (!configGetter) {
+    throw new Error(`Unknown mode ${mode}`);
+  }
+
+  return configGetter();
 });
