@@ -1,13 +1,15 @@
 {
   "name": "piano-visualizer",
   "author": "d-buckner",
-  "version": "1.0.14",
+  "repository": "https://github.com/d-buckner/piano-visualizer",
+  "version": "1.0.15",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:demo": "vite build --mode development"
+    "build:demo": "vite build --mode development",
+    "publish": "npm run build && npm publish"
   },
   "devDependencies": {
     "@rollup/plugin-terser": "^0.4.4",

@@ -17,6 +17,6 @@ function getContent(id: string): string {
 
 function getPrefixedShortId(): string {
   const randomBuffers = crypto.getRandomValues(new Uint32Array(1));
-  const shortId = [...randomBuffers].reduce((acc, buf) => acc = buf.toString(36), '');
+  const shortId = [...randomBuffers].reduce((_, buf) => buf.toString(36), '');
   return PREFIX + shortId;
 }
