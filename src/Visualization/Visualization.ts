@@ -1,3 +1,8 @@
+/**
+ * main entry point - orchestrates the various components and manages the pixi application.
+ * handles initialization, container positioning, animation loops, and cleanup.
+ * attempts to use webgpu when available, falls back to webgl.
+ */
 import {
   type ApplicationOptions,
   type ColorSource,
@@ -11,9 +16,12 @@ import PianoRoll from '../PianoRoll';
 import VisualizationController from './VisualizationController';
 import applyStyle from '../lib/applyStyle';
 
-const DEFAULT_COLOR = '#5dadec';
-const EASING_X_DELTA_DIVISOR = 600; // magic snap speed divisor (lower is faster)
-const EASING_X_DELTA_POW = 1.5;
+const VISUALIZATION_CONFIG = {
+  DEFAULT_COLOR: '#5dadec',
+  EASING_X_DELTA_DIVISOR: 600, // magic snap speed divisor (lower is faster)
+  EASING_X_DELTA_POW: 1.5,
+  DEFAULT_PIANO_HEIGHT: 250
+} as const;
 
 type KeyHandler = (midi: number) => void;
 
@@ -44,7 +52,7 @@ export default class Visualization {
     this.layout = new Layout({
       width: config.container.clientWidth,
       height: config.container.clientHeight,
-      pianoHeight: 250,
+      pianoHeight: VISUALIZATION_CONFIG.DEFAULT_PIANO_HEIGHT,
     });
 
     this.piano = new Piano({
@@ -52,7 +60,7 @@ export default class Visualization {
       layout: this.layout,
       onKeyDown: (midi) => {
         this.config.onKeyDown?.(midi);
-        this.startNote(midi, DEFAULT_COLOR);
+        this.startNote(midi, VISUALIZATION_CONFIG.DEFAULT_COLOR);
       },
       onKeyUp: (midi) => {
         this.config.onKeyUp?.(midi);
@@ -143,7 +151,7 @@ export default class Visualization {
 
   private getEasingX(deltaX: number, step: number): number {
     return Math.max(
-      (step * Math.pow(Math.abs(deltaX), EASING_X_DELTA_POW)) / EASING_X_DELTA_DIVISOR,
+      (step * Math.pow(Math.abs(deltaX), VISUALIZATION_CONFIG.EASING_X_DELTA_POW)) / VISUALIZATION_CONFIG.EASING_X_DELTA_DIVISOR,
       1
     );
   }

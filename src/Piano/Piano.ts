@@ -1,7 +1,18 @@
+/**
+ * piano renderer - draws the piano keys and tracks which ones are active.
+ * uses separate containers for natural and accidental keys to handle z-ordering.
+ * supports multiple colors per key and optional identifiers for complex scenarios.
+ */
 import {type ColorSource, Container, Graphics} from 'pixi.js';
 import Layout from '../Layout';
 import Pitch from '../Pitch';
 import PianoController from './PianoController';
+
+const MIDI_RANGE = {
+  MIN: 21, // A0
+  MAX: 108, // C8
+  TOTAL_KEYS: 88
+} as const;
 
 type Config = {
     container: Container;
@@ -40,6 +51,8 @@ export default class Piano {
     }
 
     public keyDown(midi: number, color: string, identifier?: string) {
+        if (!this.isValidMidi(midi)) return;
+
         if (!this.activeKeys.has(midi)) {
             this.activeKeys.set(midi, []);
         }
@@ -52,6 +65,8 @@ export default class Piano {
     }
 
     public keyUp(midi: number, identifier?: string) {
+        if (!this.isValidMidi(midi)) return;
+
         const existingEntries = this.activeKeys.get(midi);
         if (!existingEntries) {
             return;
@@ -102,6 +117,14 @@ export default class Piano {
         const pianoY = this.layout.getPianoY();
         this.container.y = pianoY;
         this.pianoController.updatePianoY(pianoY);
+    }
+
+    private isValidMidi(midi: number): boolean {
+        if (midi < MIDI_RANGE.MIN || midi > MIDI_RANGE.MAX) {
+            console.warn(`Invalid MIDI note: ${midi}. Valid range is ${MIDI_RANGE.MIN}-${MIDI_RANGE.MAX}`);
+            return false;
+        }
+        return true;
     }
 
     private createKeyGraphic(pitch: Pitch) {

@@ -1,8 +1,14 @@
+/**
+ * scrolling note blocks - renders the falling/rising note visualization.
+ * animates blocks over time and cleans up off-screen graphics.
+ * uses rounded rectangles with configurable colors and minimum heights.
+ */
 import { Container, Graphics, type Ticker } from 'pixi.js';
 import Layout from './Layout';
 
 const BORDER_COLOR = '#2d2e2e';
 const MIN_BLOCK_HEIGHT = 8;
+const ANIMATION_SPEED_FACTOR = 0.2;
 
 type Config = {
   container: Container;
@@ -83,9 +89,8 @@ export default class PianoRoll {
     }
 
     for (const block of blocks) {
-      if (block.isActive) {
+      if (block.isActive && !block.identifier) {
         block.isActive = false;
-        return;
       }
     }
   }
@@ -97,7 +102,7 @@ export default class PianoRoll {
   }
 
   private renderMidiBlocks(blocks: Block[], ticker: Ticker) {
-    const distance = ticker.deltaMS / 5;
+    const distance = ticker.deltaMS * ANIMATION_SPEED_FACTOR;
     // buffer for block indexes marked for deletion
     const blockDeletionBuffer: number[] = [];
 
@@ -137,11 +142,12 @@ export default class PianoRoll {
       });
     });
 
-    // flush buffer of blocks marked for removal
-    blockDeletionBuffer.forEach((blockIndex) => {
+    // flush buffer of blocks marked for removal (reverse iteration for safe deletion)
+    for (let i = blockDeletionBuffer.length - 1; i >= 0; i--) {
+      const blockIndex = blockDeletionBuffer[i];
       const block = blocks[blockIndex];
       if (!block) {
-        return;
+        continue;
       }
       block.graphics.destroy();
       if (blocks.length === 1) {
@@ -149,7 +155,7 @@ export default class PianoRoll {
         return;
       }
       blocks.splice(blockIndex, 1);
-    });
+    }
   }
 
   private updateGraphics(options: GraphicsOptions) {

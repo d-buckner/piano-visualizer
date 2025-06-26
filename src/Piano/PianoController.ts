@@ -1,3 +1,8 @@
+/**
+ * input controller - handles mouse and touch events for the piano keys.
+ * tries to support multi-touch and mouse dragging across keys.
+ * includes some edge case handling for when the cursor leaves the piano area.
+ */
 import { type FederatedPointerEvent, Graphics } from 'pixi.js';
 import setCursor, { Cursor } from '../lib/setCursor';
 
@@ -55,6 +60,14 @@ export default class PianoController {
     this.pianoY = pianoY;
   }
 
+  private handleTouchEnd(pointerId: number) {
+    const pointerMidi = this.touchMidiById.get(pointerId);
+    this.touchMidiById.delete(pointerId);
+    if (pointerMidi !== undefined) {
+      this.options.onKeyUp(pointerMidi);
+    }
+  }
+
   private addKeyHandlers(graphic: Graphics, key: number) {
     const midi = key + 21;
     graphic.eventMode = 'static';
@@ -108,8 +121,11 @@ export default class PianoController {
     });
 
     graphic.on('touchend', (e: FPE) => {
-      this.touchMidiById.delete(e.pointerId);
-      this.options.onKeyUp(midi);
+      this.handleTouchEnd(e.pointerId);
+    });
+
+    graphic.on('touchcancel', (e: FPE) => {
+      this.handleTouchEnd(e.pointerId);
     });
   }
 }

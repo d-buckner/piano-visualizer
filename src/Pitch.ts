@@ -1,3 +1,8 @@
+/**
+ * pitch helper - converts midi numbers to useful music theory properties.
+ * mostly just does the math to figure out octave, chroma, and whether a note is natural.
+ * immutable once created.
+ */
 const NATURAL_CHROMA = new Set([0, 2, 4, 5, 7, 9, 11]);
 
 export default class Pitch {
