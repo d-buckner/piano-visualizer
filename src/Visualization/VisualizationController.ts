@@ -39,6 +39,7 @@ export default class VisualizationController {
   private targetContainerX: number = 0;
   private eventListeners: Record<string, Function>;
   private abortController: AbortController;
+  private readonly passiveEventTypes = new Set(['touchstart', 'touchmove', 'wheel']);
 
   constructor(options: VisualizationControllerOptions) {
     this.options = options;
@@ -72,7 +73,10 @@ export default class VisualizationController {
       this.options.canvas.addEventListener(
         eventType,
         handler.bind(this) as EventListener,
-        { signal: this.abortController.signal }
+        { 
+          signal: this.abortController.signal,
+          passive: this.passiveEventTypes.has(eventType)
+        }
       );
     });
   }
