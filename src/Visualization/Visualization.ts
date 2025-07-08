@@ -16,14 +16,14 @@ import PianoRoll from '../PianoRoll';
 import VisualizationController from './VisualizationController';
 import applyStyle from '../lib/applyStyle';
 
-const VISUALIZATION_CONFIG = {
+const VIZ_CONFIG = {
   DEFAULT_COLOR: '#5dadec',
   EASING_X_DELTA_DIVISOR: 600, // magic snap speed divisor (lower is faster)
   EASING_X_DELTA_POW: 1.5,
   DEFAULT_PIANO_HEIGHT: 250
 } as const;
 
-type KeyHandler = (midi: number) => void;
+type KeyHandler = (midi: number) => undefined | string;
 
 type Config = {
   container: HTMLElement;
@@ -52,15 +52,15 @@ export default class Visualization {
     this.layout = new Layout({
       width: config.container.clientWidth,
       height: config.container.clientHeight,
-      pianoHeight: VISUALIZATION_CONFIG.DEFAULT_PIANO_HEIGHT,
+      pianoHeight: VIZ_CONFIG.DEFAULT_PIANO_HEIGHT,
     });
 
     this.piano = new Piano({
       container: this.renderContainer,
       layout: this.layout,
       onKeyDown: (midi) => {
-        this.config.onKeyDown?.(midi);
-        this.startNote(midi, VISUALIZATION_CONFIG.DEFAULT_COLOR);
+        const color = this.config?.onKeyDown?.(midi);
+        this.startNote(midi, color);
       },
       onKeyUp: (midi) => {
         this.config.onKeyUp?.(midi);
@@ -82,7 +82,11 @@ export default class Visualization {
     this.resizeObserver.observe(config.container);
   }
 
-  public startNote(midi: number, color: string, identifier?: string) {
+  public startNote(
+    midi: number,
+    color: string = VIZ_CONFIG.DEFAULT_COLOR,
+    identifier?: string,
+  ) {
     this.pianoRoll.startNote(midi, color, identifier);
     this.piano.keyDown(midi, color, identifier);
   }
@@ -101,7 +105,6 @@ export default class Visualization {
     const { container, backgroundColor } = this.config;
     const options: Partial<ApplicationOptions> = {
       resizeTo: container,
-      preference: 'webgpu',
     };
     if (backgroundColor === 'transparent') {
       options.backgroundAlpha = 0;
@@ -151,7 +154,7 @@ export default class Visualization {
 
   private getEasingX(deltaX: number, step: number): number {
     return Math.max(
-      (step * Math.pow(Math.abs(deltaX), VISUALIZATION_CONFIG.EASING_X_DELTA_POW)) / VISUALIZATION_CONFIG.EASING_X_DELTA_DIVISOR,
+      (step * Math.pow(Math.abs(deltaX), VIZ_CONFIG.EASING_X_DELTA_POW)) / VIZ_CONFIG.EASING_X_DELTA_DIVISOR,
       1
     );
   }

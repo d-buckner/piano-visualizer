@@ -1,9 +1,0 @@
-/node_modules/
-/src/
-package-lock.json
-style.css
-tsconfig.json
-index.html
-vite*
-.github
-.idea

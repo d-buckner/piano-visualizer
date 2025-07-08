@@ -1,6 +1,6 @@
-import { defineConfig, type UserConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 import terser from '@rollup/plugin-terser';
+import type { UserConfig } from 'vite';
 
 
 export default function getProdConfig(): UserConfig {
