@@ -78,6 +78,10 @@ export default class Visualization {
     this.resizeObserver = new ResizeObserver(([{ contentRect }]) => {
       this.layout.setWidth(contentRect.width);
       this.layout.setHeight(contentRect.height);
+      
+      // Immediately sync container position to prevent key shifting during resize
+      this.renderContainer.x = this.layout.getX();
+      this.containerTargetX = this.layout.getX();
     });
     this.resizeObserver.observe(config.container);
   }
