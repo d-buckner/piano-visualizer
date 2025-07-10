@@ -1,4 +1,5 @@
 const containerStyle = `
+  overflow: hidden;
   overscroll-behavior-x: none;
   user-select: none;
   touch-action: none;
