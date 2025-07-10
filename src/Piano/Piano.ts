@@ -3,7 +3,7 @@
  * uses separate containers for natural and accidental keys to handle z-ordering.
  * supports multiple colors per key and optional identifiers for complex scenarios.
  */
-import {type ColorSource, Container, Graphics} from 'pixi.js';
+import {type ColorSource, Container, Graphics, FillGradient, Color} from 'pixi.js';
 import Layout from '../Layout';
 import Pitch from '../Pitch';
 import PianoController from './PianoController';
@@ -41,6 +41,7 @@ export default class Piano {
     private graphics: Graphics[];
     private layout: Layout;
     private activeKeys: Map<number, ActiveKey[]> = new Map();
+    private gradientCache: Map<string, FillGradient> = new Map();
 
     constructor(config: Config) {
         this.config = config;
@@ -151,7 +152,6 @@ export default class Piano {
     private createNaturalKeyGraphic(graphic: Graphics, keyElement: KeyElement, color?: string) {
         const radius = 4;
         const shadowDepth = 3;
-        const highlightHeight = 8;
 
         // Bottom shadow for depth
         graphic
@@ -164,21 +164,13 @@ export default class Piano {
             )
             .fill('#d0d0d0');
 
-        // Main key body
+        // Main key body with gradient for realistic appearance
+        const baseColor = color ?? '#f8f8f8';
+        const naturalGradient = this.getOrCreateNaturalGradient(baseColor);
+        
         graphic
             .roundRect(keyElement.x, 0, keyElement.width, keyElement.height, radius)
-            .fill(color ?? '#f8f8f8');
-
-        // Top highlight for 3D effect
-        graphic
-            .roundRect(
-                keyElement.x + 1, 
-                1, 
-                keyElement.width - 2, 
-                highlightHeight, 
-                radius
-            )
-            .fill(color ? this.lightenColor(color, 0.2) : '#ffffff');
+            .fill(naturalGradient);
 
         // Border
         graphic
@@ -189,65 +181,164 @@ export default class Piano {
     }
 
     private createAccidentalKeyGraphic(graphic: Graphics, keyElement: KeyElement, color?: string) {
-        const radius = 2;
-        const shadowDepth = 4;
-        const shadowMargin = color ? 2 : 4;
-        const shadowHeight = color
+        const radius = 3;
+        const shadowDepth = 5;
+        const shadowMargin = color ? 2 : 3;
+        const surfaceHeight = color
             ? keyElement.height - shadowMargin * 2
-            : keyElement.height / 1.0625;
+            : keyElement.height * 0.9;
 
-        // Bottom shadow for depth
+        // Deep bottom shadow for realistic depth
+        graphic
+            .roundRect(
+                keyElement.x - 1, 
+                shadowDepth, 
+                keyElement.width + 2, 
+                keyElement.height + 2, 
+                radius
+            )
+            .fill('#0a0a0a');
+
+        // Secondary shadow layer
         graphic
             .roundRect(
                 keyElement.x, 
-                shadowDepth, 
+                shadowDepth - 2, 
                 keyElement.width, 
                 keyElement.height, 
                 radius
             )
-            .fill('#1a1a1a');
+            .fill('#151515');
 
-        // Main key body
+        // Main key body with gradient-like effect
         graphic
             .roundRect(keyElement.x, 0, keyElement.width, keyElement.height, radius)
-            .fill('#2a2a2a');
+            .fill('#1a1a1a');
 
-        // Inner surface with color or default
+        // Glossy surface with smooth gradient
+        const surfaceColor = color ?? '#2d2d2d';
+        const surfaceWidth = keyElement.width - shadowMargin * 2;
+        const surfaceX = keyElement.x + shadowMargin;
+        const surfaceY = 3;
+        
+        // Get cached gradient to prevent memory leaks
+        const gradient = this.getOrCreateGradient(surfaceColor);
+        
+        graphic
+            .roundRect(
+                surfaceX,
+                surfaceY,
+                surfaceWidth,
+                surfaceHeight,
+                radius,
+            )
+            .fill(gradient);
+
+        // Very subtle side bevels for 3D effect
+        const bevelSize = 1;
+        // Left bevel (very subtle)
         graphic
             .roundRect(
                 keyElement.x + shadowMargin,
-                2,
-                keyElement.width - shadowMargin * 2,
-                shadowHeight,
-                radius * 1.5,
+                4,
+                bevelSize,
+                surfaceHeight * 0.5,
+                0,
             )
-            .fill(color ?? '#3a3a3a');
+            .fill(color ? this.lightenColor(color, 0.1) : '#353535');
 
-        // Subtle highlight on top edge
-        if (!color) {
-            graphic
-                .roundRect(
-                    keyElement.x + shadowMargin + 1,
-                    2,
-                    keyElement.width - shadowMargin * 2 - 2,
-                    3,
-                    radius,
-                )
-                .fill('#4a4a4a');
-        }
+        // Right bevel (even more subtle)
+        graphic
+            .roundRect(
+                keyElement.x + keyElement.width - shadowMargin - bevelSize,
+                4,
+                bevelSize,
+                surfaceHeight * 0.5,
+                0,
+            )
+            .fill(color ? this.lightenColor(color, 0.05) : '#303030');
 
         return graphic;
     }
 
     private lightenColor(color: string, factor: number): string {
-        // Simple color lightening - converts hex to lighter version
-        if (!color.startsWith('#')) return color;
+        // Use PixiJS Color class for proper color manipulation
+        const pixiColor = new Color(color);
         
-        const num = parseInt(color.slice(1), 16);
-        const r = Math.min(255, Math.floor((num >> 16) + (255 - (num >> 16)) * factor));
-        const g = Math.min(255, Math.floor(((num >> 8) & 0x00FF) + (255 - ((num >> 8) & 0x00FF)) * factor));
-        const b = Math.min(255, Math.floor((num & 0x0000FF) + (255 - (num & 0x0000FF)) * factor));
+        if (factor >= 0) {
+            // Lighten: blend with white
+            const white = new Color(0xffffff);
+            const [r, g, b, a] = pixiColor.toArray();
+            const blendedR = r + (white.red - r) * factor;
+            const blendedG = g + (white.green - g) * factor;
+            const blendedB = b + (white.blue - b) * factor;
+            
+            return new Color([blendedR, blendedG, blendedB, a]).toHex();
+        } else {
+            // Darken: blend with black
+            const [r, g, b, a] = pixiColor.toArray();
+            const darkenFactor = 1 + factor; // Convert negative factor to positive
+            
+            return new Color([r * darkenFactor, g * darkenFactor, b * darkenFactor, a]).toHex();
+        }
+    }
+
+    private getOrCreateGradient(baseColor: string): FillGradient {
+        // Create a cache key based on the base color
+        const cacheKey = `accidental-${baseColor}`;
         
-        return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+        // Return existing gradient if already cached
+        if (this.gradientCache.has(cacheKey)) {
+            return this.gradientCache.get(cacheKey)!;
+        }
+        
+        // Create new gradient with proper colors
+        const topColor = this.lightenColor(baseColor, 0.12);
+        const midColor = this.lightenColor(baseColor, 0.02);
+        
+        const gradient = new FillGradient(0, 0, 0, 1);
+        gradient.addColorStop(0, topColor);      // Light at top
+        gradient.addColorStop(0.3, midColor);   // Transition
+        gradient.addColorStop(1, baseColor);    // Darker at bottom
+        gradient.buildLinearGradient();
+        
+        // Cache the gradient for reuse
+        this.gradientCache.set(cacheKey, gradient);
+        return gradient;
+    }
+
+    private getOrCreateNaturalGradient(baseColor: string): FillGradient {
+        // Create a cache key based on the base color
+        const cacheKey = `natural-${baseColor}`;
+        
+        // Return existing gradient if already cached
+        if (this.gradientCache.has(cacheKey)) {
+            return this.gradientCache.get(cacheKey)!;
+        }
+        
+        // Create subtle gradient for natural keys (top-to-bottom)
+        const topColor = this.lightenColor(baseColor, 0.15);     // Brighter highlight at top
+        const midColor = baseColor;                               // Base color in middle
+        const bottomColor = this.lightenColor(baseColor, -0.05); // Slightly darker at bottom
+        
+        const gradient = new FillGradient(0, 0, 0, 1);
+        gradient.addColorStop(0, topColor);       // Bright highlight at top
+        gradient.addColorStop(0.4, midColor);    // Base color
+        gradient.addColorStop(1, bottomColor);   // Subtle shadow at bottom
+        gradient.buildLinearGradient();
+        
+        // Cache the gradient for reuse
+        this.gradientCache.set(cacheKey, gradient);
+        return gradient;
+    }
+
+    public destroy(): void {
+        // Clean up cached gradients to prevent memory leaks
+        this.gradientCache.forEach(gradient => {
+            if (gradient.texture) {
+                gradient.texture.destroy();
+            }
+        });
+        this.gradientCache.clear();
     }
 }
