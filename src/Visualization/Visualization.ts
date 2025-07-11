@@ -15,6 +15,7 @@ import Piano from '../Piano';
 import PianoRoll from '../PianoRoll';
 import VisualizationController from './VisualizationController';
 import applyStyle from '../lib/applyStyle';
+import Cursor from '../lib/Cursor';
 
 const VIZ_CONFIG = {
   DEFAULT_COLOR: '#5dadec',
@@ -47,6 +48,7 @@ export default class Visualization {
     this.config = config;
     this.app = new Application();
     this.htmlContainer = document.createElement('div');
+    Cursor.init(this.htmlContainer);
     this.app.resizeTo = config.container;
     this.renderContainer = new Container();
     this.layout = new Layout({

@@ -4,7 +4,7 @@
  * includes some edge case handling for when the cursor leaves the piano area.
  */
 import { type FederatedPointerEvent, Graphics } from 'pixi.js';
-import setCursor, { Cursor } from '../lib/setCursor';
+import Cursor, { CursorType } from '../lib/Cursor';
 
 type Options = {
   graphics: Graphics[];
@@ -31,7 +31,7 @@ export default class PianoController {
     globalEventTarget.on('globalmousemove', (e: FPE) => {
       if (this.mouseMidi === null) {
         if (e.clientY > this.pianoY) {
-          setCursor(Cursor.POINTER);
+          Cursor.set(CursorType.POINTER);
         }
         return;
       }
@@ -101,30 +101,33 @@ export default class PianoController {
     });
 
     graphic.on('touchstart', (e: FPE) => {
+      e.preventDefault();
       this.touchMidiById.set(e.pointerId, midi);
       this.options.onKeyDown(midi);
     });
 
     graphic.on('touchmove', (e: FPE) => {
-      const { pointerId } = e;
-      const prevMidi = this.touchMidiById.get(pointerId);
+      const prevMidi = this.touchMidiById.get(e.pointerId);
       if (prevMidi === midi) {
         return;
       }
-
+      
+      e.preventDefault();
       if (prevMidi !== undefined) {
         this.options.onKeyUp(prevMidi);
       }
 
       this.options.onKeyDown(midi);
-      this.touchMidiById.set(pointerId, midi);
+      this.touchMidiById.set(e.pointerId, midi);
     });
 
     graphic.on('touchend', (e: FPE) => {
+      e.preventDefault();
       this.handleTouchEnd(e.pointerId);
     });
 
     graphic.on('touchcancel', (e: FPE) => {
+      e.preventDefault();
       this.handleTouchEnd(e.pointerId);
     });
   }

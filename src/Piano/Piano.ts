@@ -7,6 +7,7 @@ import {type ColorSource, Container, Graphics, FillGradient, Color} from 'pixi.j
 import Layout from '../Layout';
 import Pitch from '../Pitch';
 import PianoController from './PianoController';
+import {PianoTheme} from './PianoTheme';
 
 const MIDI_RANGE = {
   MIN: 21, // A0
@@ -162,10 +163,10 @@ export default class Piano {
                 keyElement.height, 
                 radius
             )
-            .fill('#d0d0d0');
+            .fill(PianoTheme.natural.shadow);
 
         // Main key body with gradient for realistic appearance
-        const baseColor = color ?? '#f8f8f8';
+        const baseColor = color ?? PianoTheme.natural.defaultBase;
         const naturalGradient = this.getOrCreateNaturalGradient(baseColor);
         
         graphic
@@ -175,7 +176,7 @@ export default class Piano {
         // Border
         graphic
             .roundRect(keyElement.x, 0, keyElement.width, keyElement.height, radius)
-            .stroke({ width: 1, color: '#999999' });
+            .stroke({ width: 1, color: PianoTheme.natural.border });
 
         return graphic;
     }
@@ -197,7 +198,7 @@ export default class Piano {
                 keyElement.height + 2, 
                 radius
             )
-            .fill('#0a0a0a');
+            .fill(PianoTheme.accidental.deepShadow);
 
         // Secondary shadow layer
         graphic
@@ -208,15 +209,15 @@ export default class Piano {
                 keyElement.height, 
                 radius
             )
-            .fill('#151515');
+            .fill(PianoTheme.accidental.secondaryShadow);
 
         // Main key body with gradient-like effect
         graphic
             .roundRect(keyElement.x, 0, keyElement.width, keyElement.height, radius)
-            .fill('#1a1a1a');
+            .fill(PianoTheme.accidental.mainBody);
 
         // Glossy surface with smooth gradient
-        const surfaceColor = color ?? '#2d2d2d';
+        const surfaceColor = color ?? PianoTheme.accidental.defaultSurface;
         const surfaceWidth = keyElement.width - shadowMargin * 2;
         const surfaceX = keyElement.x + shadowMargin;
         const surfaceY = 3;
@@ -245,7 +246,7 @@ export default class Piano {
                 surfaceHeight * 0.5,
                 0,
             )
-            .fill(color ? this.lightenColor(color, 0.1) : '#353535');
+            .fill(color ? this.lightenColor(color, 0.1) : PianoTheme.accidental.leftBevel);
 
         // Right bevel (even more subtle)
         graphic
@@ -256,7 +257,7 @@ export default class Piano {
                 surfaceHeight * 0.5,
                 0,
             )
-            .fill(color ? this.lightenColor(color, 0.05) : '#303030');
+            .fill(color ? this.lightenColor(color, 0.05) : PianoTheme.accidental.rightBevel);
 
         return graphic;
     }

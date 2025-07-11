@@ -1,6 +1,6 @@
 import debounce from '../lib/debounce';
 import Layout, { Section } from '../Layout';
-import setCursor, { Cursor } from '../lib/setCursor';
+import Cursor, { CursorType } from '../lib/Cursor';
 
 type VisualizationControllerOptions = {
   canvas: HTMLCanvasElement;
@@ -39,7 +39,7 @@ export default class VisualizationController {
   private targetContainerX: number = 0;
   private eventListeners: Record<string, Function>;
   private abortController: AbortController;
-  private readonly passiveEventTypes = new Set(['touchstart', 'touchmove', 'wheel']);
+  private readonly passiveEventTypes = new Set(['wheel']);
 
   constructor(options: VisualizationControllerOptions) {
     this.options = options;
@@ -109,14 +109,14 @@ export default class VisualizationController {
     if (!this.mouseContext.isDown) {
       const section = layout.getSection(e.clientY);
       if (section === Section.PIANO_ROLL) {
-        setCursor(Cursor.GRAB);
+        Cursor.set(CursorType.GRAB);
       }
 
       return;
     }
 
 
-    setCursor(Cursor.GRABBING);
+    Cursor.set(CursorType.GRABBING);
 
     this.updatePointerX(
       this.mouseContext.init.clientX,
@@ -135,6 +135,7 @@ export default class VisualizationController {
         return;
       }
 
+      e.preventDefault();
       this.touchContext[touch.identifier] = {
         clientX: touch.clientX,
         clientY: touch.clientY,
@@ -146,6 +147,7 @@ export default class VisualizationController {
   }
 
   private onTouchEnd(e: TouchEvent) {
+    e.preventDefault();
     const touchIds = new Set();
     for (const touch of e.touches) {
       touchIds.add(touch.identifier);
@@ -170,6 +172,7 @@ export default class VisualizationController {
     }
 
 
+    e.preventDefault();
     this.updatePointerX(
       touchEntry.clientX,
       touch.clientX,
