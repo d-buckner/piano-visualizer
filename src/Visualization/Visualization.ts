@@ -16,6 +16,7 @@ import PianoRoll from '../PianoRoll';
 import VisualizationController from './VisualizationController';
 import applyStyle from '../lib/applyStyle';
 import Cursor from '../lib/Cursor';
+import GestureAnimator from '../lib/GestureAnimator';
 
 const VIZ_CONFIG = {
   DEFAULT_COLOR: '#5dadec',
@@ -43,6 +44,7 @@ export default class Visualization {
   private renderContainer: Container;
   private containerTargetX = 0;
   private resizeObserver: ResizeObserver;
+  private gestureAnimator: GestureAnimator;
 
   constructor(config: Config) {
     this.config = config;
@@ -75,6 +77,18 @@ export default class Visualization {
     });
 
     this.app.stage.addChild(this.renderContainer);
+    
+    this.gestureAnimator = new GestureAnimator({
+      onPositionChange: (x) => {
+        this.renderContainer.x = x;
+        this.layout.setX(x);
+      },
+      easing: {
+        deltaPowtValue: VIZ_CONFIG.EASING_X_DELTA_POW,
+        deltaDivisor: VIZ_CONFIG.EASING_X_DELTA_DIVISOR,
+      },
+    });
+    
     this.init();
 
     this.resizeObserver = new ResizeObserver(([{ contentRect }]) => {
@@ -82,8 +96,10 @@ export default class Visualization {
       this.layout.setHeight(contentRect.height);
       
       // Immediately sync container position to prevent key shifting during resize
-      this.renderContainer.x = this.layout.getX();
-      this.containerTargetX = this.layout.getX();
+      const newX = this.layout.getX();
+      this.gestureAnimator.setPosition(newX);
+      this.gestureAnimator.setTarget(newX);
+      this.containerTargetX = newX;
     });
     this.resizeObserver.observe(config.container);
   }
@@ -123,8 +139,13 @@ export default class Visualization {
     new VisualizationController({
       canvas: this.app.canvas,
       layout: this.layout,
-      onContainerTargetXChange: (x) => (this.containerTargetX = x),
-      onContainerXChange: (x) => (this.renderContainer.x = x),
+      onContainerTargetXChange: (x) => {
+        this.containerTargetX = x;
+        this.gestureAnimator.setTarget(x);
+      },
+      onContainerXChange: (x) => {
+        this.gestureAnimator.setPosition(x);
+      },
     });
     this.htmlContainer.append(this.app.canvas);
     this.htmlContainer.id = applyStyle();
@@ -133,35 +154,7 @@ export default class Visualization {
     this.app.ticker.add((delta) => {
       this.piano.render();
       this.pianoRoll.render(delta);
-      this.animateContainerX(delta);
+      this.gestureAnimator.animate(delta);
     });
-  }
-
-  private animateContainerX({ deltaMS }: Ticker) {
-    const deltaX = this.containerTargetX - this.renderContainer.x;
-    if (deltaX === 0) {
-      this.layout.setX(this.renderContainer.x);
-      return;
-    }
-
-    // were entirely concerned about easing here
-    if (deltaX >= 1) {
-      this.renderContainer.x += this.getEasingX(deltaX, deltaMS);
-      return;
-    }
-
-    if (deltaX <= -1) {
-      this.renderContainer.x -= this.getEasingX(deltaX, deltaMS);
-      return;
-    }
-
-    this.renderContainer.x = this.containerTargetX;
-  }
-
-  private getEasingX(deltaX: number, step: number): number {
-    return Math.max(
-      (step * Math.pow(Math.abs(deltaX), VIZ_CONFIG.EASING_X_DELTA_POW)) / VIZ_CONFIG.EASING_X_DELTA_DIVISOR,
-      1
-    );
   }
 }

@@ -54,6 +54,15 @@ export default class PianoController {
         this.touchMidiById.delete(pointerId);
       }
     });
+
+    // Handle global touch end/cancel to prevent stuck keys
+    globalEventTarget.on('globaltouchend', (e: FPE) => {
+      this.handleTouchEnd(e.pointerId);
+    });
+
+    globalEventTarget.on('globaltouchcancel', (e: FPE) => {
+      this.handleTouchEnd(e.pointerId);
+    });
   }
 
   public updatePianoY(pianoY: number) {

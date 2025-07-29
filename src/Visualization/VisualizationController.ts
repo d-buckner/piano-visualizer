@@ -154,7 +154,7 @@ export default class VisualizationController {
     }
 
     if (touchIds.size === 0) {
-      this.options.onContainerTargetXChange(this.targetContainerX);
+      this.completeGesture();
     }
 
     Object.keys(this.touchContext).forEach((touchId) => {
@@ -190,9 +190,7 @@ export default class VisualizationController {
   }
 
   private onWheelSettled() {
-    const { layout, onContainerTargetXChange } = this.options;
-    this.targetContainerX = layout.getQuantizedX(layout.getX());
-    onContainerTargetXChange(this.targetContainerX);
+    this.completeGesture();
   }
 
   private updatePointerX(
@@ -213,10 +211,18 @@ export default class VisualizationController {
     this.resetMouseContext();
   }
 
+  private completeGesture(finalPosition?: number): void {
+    const { layout, onContainerTargetXChange } = this.options;
+    const currentX = finalPosition ?? layout.getX();
+    const quantizedX = layout.getQuantizedX(currentX);
+    this.targetContainerX = quantizedX;
+    onContainerTargetXChange(quantizedX);
+  }
+
   private resetMouseContext() {
     this.mouseContext = {
       isDown: false,
     };
-    this.options.onContainerTargetXChange(this.targetContainerX);
+    this.completeGesture();
   }
 }
