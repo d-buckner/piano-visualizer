@@ -28,15 +28,15 @@ describe('Layout', () => {
   });
 
   describe('width management', () => {
-    it('should update width and adjust diatonic range', () => {
+    it('should update width and adjust visible keys', () => {
       layout.setWidth(600);
       // Should adjust to smaller key range for narrow width
-      expect(layout.getDiatonicRange()).toBeLessThan(16);
+      expect(layout.getVisibleKeys()).toBeLessThan(16);
     });
 
     it('should use larger ranges for wider screens', () => {
       layout.setWidth(2000);
-      expect(layout.getDiatonicRange()).toBe(16);
+      expect(layout.getVisibleKeys()).toBe(16);
     });
   });
 

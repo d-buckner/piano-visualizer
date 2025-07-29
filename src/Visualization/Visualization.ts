@@ -34,6 +34,11 @@ type Config = {
   onKeyDown?: KeyHandler;
 };
 
+type Range = {
+  centerMidi: number;
+  visibleKeys: number;
+};
+
 export default class Visualization {
   private app: Application;
   private config: Config;
@@ -116,6 +121,39 @@ export default class Visualization {
   public endNote(midi: number, identifier?: string) {
     this.pianoRoll.endNote(midi, identifier);
     this.piano.keyUp(midi, identifier);
+  }
+
+  public setRange(centerMidi: number, visibleKeys: number): void {
+    // Use the Layout's setRange method which handles validation and positioning
+    this.layout.setRange(centerMidi, visibleKeys);
+    
+    // Sync the gesture animator to the new position
+    const newX = this.layout.getX();
+    this.gestureAnimator.setPosition(newX);
+    this.gestureAnimator.setTarget(newX);
+    this.containerTargetX = newX;
+  }
+
+  public getRange(): Range {
+    return this.layout.getRange();
+  }
+
+  public setCenterMidi(midi: number): void {
+    const currentRange = this.layout.getRange();
+    this.setRange(midi, currentRange.visibleKeys);
+  }
+
+  public getCenterMidi(): number {
+    return this.layout.getCenterMidi();
+  }
+
+  public setVisibleKeys(visibleKeys: number): void {
+    const currentRange = this.layout.getRange();
+    this.setRange(currentRange.centerMidi, visibleKeys);
+  }
+
+  public getVisibleKeys(): number {
+    return this.layout.getVisibleKeys();
   }
 
   public destroy() {

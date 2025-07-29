@@ -110,8 +110,8 @@ describe('Visualization', () => {
       layout.setX(500);
       renderContainer.x = 500;
 
-      // Get initial diatonic range
-      const initialRange = layout.getDiatonicRange();
+      // Get initial visible keys
+      const initialRange = layout.getVisibleKeys();
 
       // Simulate resize that crosses breakpoint (1200px -> 600px should change range)
       const mockEntry = {
@@ -127,8 +127,8 @@ describe('Visualization', () => {
       expect(renderContainer.x).toBe(layout.getX());
       expect(visualization['containerTargetX']).toBe(layout.getX());
       
-      // Verify that diatonic range actually changed (confirming breakpoint crossed)
-      expect(layout.getDiatonicRange()).not.toBe(initialRange);
+      // Verify that visible keys actually changed (confirming breakpoint crossed)
+      expect(layout.getVisibleKeys()).not.toBe(initialRange);
     });
 
     it('should maintain sync when no layout position change occurs', async () => {
@@ -158,6 +158,66 @@ describe('Visualization', () => {
       // Container should still be synced
       expect(renderContainer.x).toBe(layout.getX());
       expect(visualization['containerTargetX']).toBe(layout.getX());
+    });
+  });
+
+  describe('range control API', () => {
+    beforeEach(async () => {
+      visualization = new Visualization({
+        container: mockContainer
+      });
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    it('should set and get range correctly', () => {
+      visualization.setRange(72, 10); // C5 center, 10 visible keys
+      
+      const range = visualization.getRange();
+      expect(range.centerMidi).toBe(72);
+      expect(range.visibleKeys).toBe(10);
+    });
+
+    it('should update gesture animator when setting range', () => {
+      const gestureAnimator = visualization['gestureAnimator'];
+      const setPositionSpy = vi.spyOn(gestureAnimator, 'setPosition');
+      const setTargetSpy = vi.spyOn(gestureAnimator, 'setTarget');
+      
+      visualization.setRange(60, 8);
+      
+      expect(setPositionSpy).toHaveBeenCalled();
+      expect(setTargetSpy).toHaveBeenCalled();
+    });
+
+    it('should set center MIDI while preserving visible keys', () => {
+      visualization.setRange(60, 12);
+      
+      visualization.setCenterMidi(72); // Change center, keep keys
+      
+      const range = visualization.getRange();
+      expect(range.centerMidi).toBe(72);
+      expect(range.visibleKeys).toBe(12); // Should be preserved
+    });
+
+    it('should get center MIDI correctly', () => {
+      visualization.setRange(84, 16);
+      
+      expect(visualization.getCenterMidi()).toBe(84);
+    });
+
+    it('should set visible keys while preserving center MIDI', () => {
+      visualization.setRange(48, 8);
+      
+      visualization.setVisibleKeys(16); // Change keys, keep center
+      
+      const range = visualization.getRange();
+      expect(range.centerMidi).toBe(48); // Should be preserved
+      expect(range.visibleKeys).toBe(16);
+    });
+
+    it('should get visible keys correctly', () => {
+      visualization.setRange(60, 14);
+      
+      expect(visualization.getVisibleKeys()).toBe(14);
     });
   });
 

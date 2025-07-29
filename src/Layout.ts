@@ -55,6 +55,11 @@ type Config = {
   pianoHeight: number;
 };
 
+type Range = {
+  centerMidi: number;
+  visibleKeys: number;
+};
+
 export default class Layout {
   private pianoHeight: number;
   private height: number;
@@ -62,7 +67,7 @@ export default class Layout {
   private heightFactor: number;
   private width: number;
   private x: number;
-  private diatonicRange: number;
+  private range: Range;
 
   constructor(config: Config) {
     this.widthFactor = 1;
@@ -72,8 +77,12 @@ export default class Layout {
     this.x = 0;
     this.pianoHeight = config.pianoHeight;
     this.updatePianoHeight(this.pianoHeight);
-    this.diatonicRange = this.getBreakpointRange();
-    this.setDiatonicRange(this.diatonicRange);
+    const breakpointRange = this.getBreakpointRange();
+    this.range = {
+      centerMidi: 60, // Middle C default
+      visibleKeys: breakpointRange,
+    };
+    this.setVisibleKeys(breakpointRange);
   }
 
   public setWidth(width: number) {
@@ -82,10 +91,10 @@ export default class Layout {
     const newRangeFromWidth = this.getBreakpointRange();
     const targetRange =
       lastRangeFromWidth === newRangeFromWidth
-        ? this.diatonicRange
+        ? this.range.visibleKeys
         : newRangeFromWidth;
 
-    this.setDiatonicRange(targetRange);
+    this.setVisibleKeys(targetRange);
   }
 
   public setHeight(height: number) {
@@ -136,14 +145,14 @@ export default class Layout {
     return this.height - this.pianoHeight;
   }
 
-  public setDiatonicRange(diatonicRange: number) {
-    this.diatonicRange = diatonicRange;
-    const visibleKeys = this.width / NATURAL_KEY_WIDTH;
-    this.widthFactor = visibleKeys / diatonicRange;
+  public setVisibleKeys(visibleKeys: number) {
+    this.range.visibleKeys = visibleKeys;
+    const screenKeys = this.width / NATURAL_KEY_WIDTH;
+    this.widthFactor = screenKeys / visibleKeys;
   }
 
-  public getDiatonicRange(): number {
-    return this.diatonicRange;
+  public getVisibleKeys(): number {
+    return this.range.visibleKeys;
   }
 
   public updatePianoHeight(pianoHeight: number) {
@@ -178,6 +187,87 @@ export default class Layout {
       x: (x + xOffset - DEFAULT_X_OFFSET) * this.widthFactor,
       width: width * this.widthFactor,
     };
+  }
+
+  // Center-point based methods (parallel to X coordinate system)
+  public setCenterMidi(midi: number): void {
+    if (midi < 21 || midi > 108) {
+      console.warn(`Center MIDI ${midi} outside valid range 21-108`);
+      return;
+    }
+    this.range.centerMidi = midi;
+  }
+
+  public getCenterMidi(): number {
+    return this.range.centerMidi;
+  }
+
+  public getQuantizedCenterMidi(): number {
+    // Convert to X, quantize visually, then convert back to MIDI
+    const x = this.centerMidiToX(this.range.centerMidi);
+    const quantizedX = this.getQuantizedX(x);
+    return this.xToCenterMidi(quantizedX);
+  }
+
+  public setRange(centerMidi: number, visibleKeys: number): void {
+    // Validate inputs
+    if (centerMidi < 21 || centerMidi > 108) {
+      console.warn(`Center MIDI ${centerMidi} outside valid range 21-108`);
+      return;
+    }
+    if (visibleKeys < 4 || visibleKeys > 88) {
+      console.warn(`Visible keys ${visibleKeys} outside valid range 4-88`);
+      return;
+    }
+
+    // Set the center point and visible keys
+    this.range.centerMidi = centerMidi;
+    this.range.visibleKeys = visibleKeys;
+
+    // Update the visible keys (this will sync range.visibleKeys)
+    this.setVisibleKeys(visibleKeys);
+
+    // Calculate the X offset needed to center the specified MIDI note
+    const targetX = this.centerMidiToX(centerMidi);
+    this.setX(targetX);
+  }
+
+  public getRange(): Range {
+    return this.range as const;
+  }
+
+  public xToCenterMidi(x: number): number {
+    // Convert X coordinate to center MIDI note
+    const screenCenterX = this.width / 2;
+    const offsetX = (x + screenCenterX) / this.widthFactor + DEFAULT_X_OFFSET;
+    
+    // Find closest MIDI note to this X position
+    let closestMidi = 60;
+    let closestDistance = Infinity;
+    
+    for (let midi = 21; midi <= 108; midi++) {
+      const pitch = new Pitch(midi);
+      const noteX = CHROMA_X_POSITIONS[pitch.chroma] + pitch.octave * OCTAVE_WIDTH;
+      const distance = Math.abs(noteX - offsetX);
+      
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestMidi = midi;
+      }
+    }
+    
+    return closestMidi;
+  }
+
+  public centerMidiToX(midi: number): number {
+    // Convert center MIDI note to X coordinate that would center that note on screen
+    const pitch = new Pitch(midi);
+    const noteX = CHROMA_X_POSITIONS[pitch.chroma] + pitch.octave * OCTAVE_WIDTH;
+    const scaledNoteX = (noteX - DEFAULT_X_OFFSET) * this.widthFactor;
+    const screenCenterX = this.width / 2;
+    
+    // Return the X offset needed to center this MIDI note
+    return scaledNoteX - screenCenterX;
   }
 
   private getBreakpointRange(): number {
