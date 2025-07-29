@@ -88,7 +88,7 @@ describe('VisualizationController', () => {
       );
       
       expect(wheelCall?.[2]).toMatchObject({
-        passive: true,
+        passive: false,
       });
     });
   });

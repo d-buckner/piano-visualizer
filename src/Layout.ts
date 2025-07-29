@@ -30,8 +30,6 @@ const BREAKPOINT_RANGES = [
   [1200, 12],
   [1600, 16],
 ] as const;
-const MIN_X = NATURAL_KEY_WIDTH * -12;
-const MAX_X = NATURAL_KEY_WIDTH * 23;
 
 export enum Section {
   PIANO_ROLL = 'PIANO_ROLL',
@@ -110,10 +108,16 @@ export default class Layout {
   }
 
   public getClampedX(x: number): number {
-    return Math.max(
-      MIN_X * this.widthFactor,
-      Math.min(MAX_X * this.widthFactor, x)
-    );
+    // Calculate boundaries dynamically to handle mid-gesture state
+    const firstKeyX = this.getKeyElement(21).x;
+    const lastKey = this.getKeyElement(108);
+    const lastKeyRight = lastKey.x + lastKey.width;
+    
+    // Can't pan to show space before first key or after last key
+    const minX = Math.min(0, this.width - lastKeyRight);
+    const maxX = Math.max(0, -firstKeyX);
+    
+    return Math.max(minX, Math.min(maxX, x));
   }
 
   public getPianoRollHeight() {
@@ -233,7 +237,7 @@ export default class Layout {
   }
 
   public getRange(): Range {
-    return this.range as const;
+    return { ...this.range };
   }
 
   public xToCenterMidi(x: number): number {

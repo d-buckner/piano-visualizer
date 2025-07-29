@@ -36,10 +36,9 @@ export default class VisualizationController {
   private options: VisualizationControllerOptions;
   private mouseContext: MouseContext;
   private touchContext: TouchStartContext = {};
-  private targetContainerX: number = 0;
   private eventListeners: Record<string, Function>;
   private abortController: AbortController;
-  private readonly passiveEventTypes = new Set(['wheel']);
+  private readonly passiveEventTypes = new Set<string>([]);
 
   constructor(options: VisualizationControllerOptions) {
     this.options = options;
@@ -181,6 +180,9 @@ export default class VisualizationController {
   }
 
   private onWheel(e: WheelEvent) {
+    // Prevent browser navigation on horizontal swipe
+    e.preventDefault();
+    
     const { layout, onContainerXChange, onContainerTargetXChange } =
       this.options;
     const x = layout.getClampedX(layout.getX() - e.deltaX);
@@ -202,7 +204,6 @@ export default class VisualizationController {
       this.options;
     const deltaX = currentClientX - initialClientX;
     const x = layout.getClampedX(initialContainerX + deltaX);
-    this.targetContainerX = layout.getQuantizedX(x);
     onContainerXChange(x);
     onContainerTargetXChange(x);
   }
@@ -215,7 +216,6 @@ export default class VisualizationController {
     const { layout, onContainerTargetXChange } = this.options;
     const currentX = finalPosition ?? layout.getX();
     const quantizedX = layout.getQuantizedX(currentX);
-    this.targetContainerX = quantizedX;
     onContainerTargetXChange(quantizedX);
   }
 
