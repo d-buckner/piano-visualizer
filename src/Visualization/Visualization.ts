@@ -6,7 +6,6 @@
 import {
   type ApplicationOptions,
   type ColorSource,
-  type Ticker,
   Application,
   Container,
 } from 'pixi.js';
