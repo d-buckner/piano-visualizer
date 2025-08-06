@@ -24,7 +24,8 @@ vi.mock('./Piano', () => ({
   default: vi.fn().mockImplementation(() => ({
     keyDown: vi.fn(),
     keyUp: vi.fn(),
-    render: vi.fn()
+    render: vi.fn(),
+    forceRedraw: vi.fn()
   }))
 }));
 
@@ -32,7 +33,9 @@ vi.mock('./PianoRoll', () => ({
   default: vi.fn().mockImplementation(() => ({
     startNote: vi.fn(),
     endNote: vi.fn(),
-    render: vi.fn()
+    render: vi.fn(),
+    forceRedraw: vi.fn(),
+    destroy: vi.fn()
   }))
 }));
 

@@ -161,6 +161,7 @@ describe('Piano', () => {
     it('should create containers for natural and accidental keys', () => {
       const initialContainerCalls = (Container as any).mock.calls.length;
       
+      piano.forceRedraw();
       piano.render();
       
       // Should create 3 new containers: main + natural + accidental
@@ -170,6 +171,7 @@ describe('Piano', () => {
     });
 
     it('should create graphics for all 88 piano keys', () => {
+      piano.forceRedraw();
       piano.render();
       
       // 88 keys + initial graphics array creation
@@ -177,6 +179,7 @@ describe('Piano', () => {
     });
 
     it('should update piano Y position', () => {
+      piano.forceRedraw();
       piano.render();
       
       expect(mockLayout.getPianoY).toHaveBeenCalled();

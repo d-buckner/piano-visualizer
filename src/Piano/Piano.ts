@@ -43,6 +43,7 @@ export default class Piano {
     private layout: Layout;
     private activeKeys: Map<number, ActiveKey[]> = new Map();
     private gradientCache: Map<string, FillGradient> = new Map();
+    private needsRedraw = true; // Initial render needed
 
     constructor(config: Config) {
         this.config = config;
@@ -70,6 +71,8 @@ export default class Piano {
             midi,
             identifier,
         });
+        
+        this.needsRedraw = true;
     }
 
     public keyUp(midi: number, identifier?: string) {
@@ -83,10 +86,13 @@ export default class Piano {
         if (!identifier) {
             if (existingEntries.length === 1) {
                 this.activeKeys.delete(midi);
+                this.needsRedraw = true;
                 return;
             }
 
             this.activeKeys.get(midi)!.pop();
+            this.needsRedraw = true;
+            return;
         }
 
         const newActiveKeys = this.activeKeys
@@ -94,13 +100,19 @@ export default class Piano {
             ?.filter((activeKey) => activeKey.identifier !== identifier);
         if (!newActiveKeys?.length) {
             this.activeKeys.delete(midi);
+            this.needsRedraw = true;
             return;
         }
 
         this.activeKeys.set(midi, newActiveKeys);
+        this.needsRedraw = true;
     }
 
     public render() {
+        if (!this.needsRedraw) {
+            return;
+        }
+
         const prevKeyContainer = this.container;
 
         this.container = new Container();
@@ -125,6 +137,12 @@ export default class Piano {
         const pianoY = this.layout.getPianoY();
         this.container.y = pianoY;
         this.pianoController.updatePianoY(pianoY);
+        
+        this.needsRedraw = false;
+    }
+
+    public forceRedraw() {
+        this.needsRedraw = true;
     }
 
     private isValidMidi(midi: number): boolean {

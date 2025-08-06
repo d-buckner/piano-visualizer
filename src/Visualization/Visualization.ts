@@ -100,6 +100,10 @@ export default class Visualization {
       this.layout.setWidth(contentRect.width);
       this.layout.setHeight(contentRect.height);
       
+      // Force redraw since layout changed
+      this.pianoRoll.forceRedraw();
+      this.piano.forceRedraw();
+      
       // Immediately sync container position to prevent key shifting during resize
       const newX = this.layout.getX();
       this.gestureAnimator.setPosition(newX);
@@ -126,6 +130,10 @@ export default class Visualization {
   public setRange(centerMidi: number, visibleKeys: number): void {
     // Use the Layout's setRange method which handles validation and positioning
     this.layout.setRange(centerMidi, visibleKeys);
+    
+    // Force redraw since positions changed
+    this.pianoRoll.forceRedraw();
+    this.piano.forceRedraw();
     
     // Sync the gesture animator to the new position
     const newX = this.layout.getX();
@@ -158,6 +166,7 @@ export default class Visualization {
 
   public destroy() {
     this.resizeObserver.disconnect();
+    this.pianoRoll.destroy();
     this.app.destroy();
   }
 
