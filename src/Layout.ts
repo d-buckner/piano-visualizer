@@ -107,13 +107,16 @@ export default class Layout {
     return this.x;
   }
 
-  public getClampedX(x: number): number {
-    // Calculate boundaries dynamically to handle mid-gesture state
+  public getClampedX(x: number, forceAllowPanning = false): number {
     const firstKeyX = this.getKeyElement(21).x;
     const lastKey = this.getKeyElement(108);
     const lastKeyRight = lastKey.x + lastKey.width;
+    const pianoWidth = lastKeyRight - firstKeyX;
     
-    // Can't pan to show space before first key or after last key
+    if (pianoWidth <= this.width && !forceAllowPanning) {
+      return (this.width - pianoWidth) / 2 - firstKeyX;
+    }
+    
     const minX = Math.min(0, this.width - lastKeyRight);
     const maxX = Math.max(0, -firstKeyX);
     
@@ -157,6 +160,44 @@ export default class Layout {
 
   public getVisibleKeys(): number {
     return this.range.visibleKeys;
+  }
+
+  public setWidthFactor(widthFactor: number) {
+    const clampedFactor = this.getClampedWidthFactor(widthFactor);
+    if (clampedFactor === this.widthFactor) {
+      return;
+    }
+    
+    const screenCenterX = this.width / 2;
+    const worldCenterX = screenCenterX - this.x;
+    const oldWidthFactor = this.widthFactor;
+    
+    this.widthFactor = clampedFactor;
+    
+    const screenKeys = this.width / NATURAL_KEY_WIDTH;
+    this.range.visibleKeys = screenKeys / this.widthFactor;
+    
+    const scaledWorldCenterX = worldCenterX * (this.widthFactor / oldWidthFactor);
+    const newX = screenCenterX - scaledWorldCenterX;
+    
+    this.setX(newX);
+  }
+
+  public getWidthFactor(): number {
+    return this.widthFactor;
+  }
+
+  public getClampedWidthFactor(widthFactor: number): number {
+    const screenKeys = this.width / NATURAL_KEY_WIDTH;
+    const visibleKeys = screenKeys / widthFactor;
+    const clampedVisibleKeys = Math.max(5, Math.min(52, visibleKeys));
+    return screenKeys / clampedVisibleKeys;
+  }
+
+  public getQuantizedWidthFactor(widthFactor: number): number {
+    const naturalKeysVisible = this.width / (NATURAL_KEY_WIDTH * widthFactor);
+    const quantizedNaturalKeys = Math.round(naturalKeysVisible);
+    return this.width / (NATURAL_KEY_WIDTH * quantizedNaturalKeys);
   }
 
   public updatePianoHeight(pianoHeight: number) {

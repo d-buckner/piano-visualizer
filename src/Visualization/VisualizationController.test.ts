@@ -38,6 +38,10 @@ describe('VisualizationController', () => {
       getClampedX: vi.fn((x) => x),
       getQuantizedX: vi.fn((x) => Math.round(x)),
       getPianoHeight: vi.fn().mockReturnValue(200),
+      getWidthFactor: vi.fn().mockReturnValue(1),
+      setWidthFactor: vi.fn(),
+      getClampedWidthFactor: vi.fn((f) => f),
+      getQuantizedWidthFactor: vi.fn((f) => Math.round(f * 4) / 4),
     } as any;
 
     abortSpy = vi.fn();
@@ -57,6 +61,8 @@ describe('VisualizationController', () => {
       layout,
       onContainerTargetXChange,
       onContainerXChange,
+      onWidthFactorChange: vi.fn(),
+      onWidthFactorTargetChange: vi.fn(),
     });
   });
 

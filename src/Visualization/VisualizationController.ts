@@ -7,6 +7,8 @@ type VisualizationControllerOptions = {
   layout: Layout;
   onContainerTargetXChange: (x: number) => void;
   onContainerXChange: (x: number) => void;
+  onWidthFactorChange: (widthFactor: number) => void;
+  onWidthFactorTargetChange: (widthFactor: number) => void;
 };
 
 type MouseDownContext = {
@@ -180,14 +182,35 @@ export default class VisualizationController {
   }
 
   private onWheel(e: WheelEvent) {
-    // Prevent browser navigation on horizontal swipe
     e.preventDefault();
     
-    const { layout, onContainerXChange, onContainerTargetXChange } =
-      this.options;
-    const x = layout.getClampedX(layout.getX() - e.deltaX);
-    onContainerXChange(x);
-    onContainerTargetXChange(x);
+    const { layout, onContainerXChange, onContainerTargetXChange, 
+            onWidthFactorChange, onWidthFactorTargetChange } = this.options;
+    
+    if (e.deltaX !== 0) {
+      const x = layout.getClampedX(layout.getX() - e.deltaX, true);
+      onContainerXChange(x);
+      onContainerTargetXChange(x);
+    }
+    
+    if (e.deltaY !== 0) {
+      const section = layout.getSection(e.clientY);
+      if (section === Section.PIANO_ROLL) {
+        const widthFactorDelta = e.deltaY * 0.001;
+        const currentWidthFactor = layout.getWidthFactor();
+        const newWidthFactor = layout.getClampedWidthFactor(currentWidthFactor - widthFactorDelta);
+        
+        layout.setWidthFactor(newWidthFactor);
+        
+        const newX = layout.getX();
+        onContainerXChange(newX);
+        onContainerTargetXChange(newX);
+        
+        onWidthFactorChange(newWidthFactor);
+        onWidthFactorTargetChange(newWidthFactor);
+      }
+    }
+    
     this.onWheelSettled();
   }
 
@@ -203,7 +226,7 @@ export default class VisualizationController {
     const { layout, onContainerXChange, onContainerTargetXChange } =
       this.options;
     const deltaX = currentClientX - initialClientX;
-    const x = layout.getClampedX(initialContainerX + deltaX);
+    const x = layout.getClampedX(initialContainerX + deltaX, true);
     onContainerXChange(x);
     onContainerTargetXChange(x);
   }
@@ -213,10 +236,19 @@ export default class VisualizationController {
   }
 
   private completeGesture(finalPosition?: number): void {
-    const { layout, onContainerTargetXChange } = this.options;
+    const { layout, onContainerTargetXChange, onWidthFactorTargetChange } = this.options;
+    
+    const currentWidthFactor = layout.getWidthFactor();
+    const quantizedWidthFactor = layout.getQuantizedWidthFactor(currentWidthFactor);
+    if (quantizedWidthFactor !== currentWidthFactor) {
+      layout.setWidthFactor(quantizedWidthFactor);
+    }
+    
     const currentX = finalPosition ?? layout.getX();
     const quantizedX = layout.getQuantizedX(currentX);
+    
     onContainerTargetXChange(quantizedX);
+    onWidthFactorTargetChange(quantizedWidthFactor);
   }
 
   private resetMouseContext() {

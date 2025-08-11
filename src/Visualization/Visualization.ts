@@ -163,6 +163,16 @@ export default class Visualization {
     return this.layout.getVisibleKeys();
   }
 
+  public setWidthFactor(widthFactor: number): void {
+    this.layout.setWidthFactor(widthFactor);
+    this.pianoRoll.forceRedraw();
+    this.piano.forceRedraw();
+  }
+
+  public getWidthFactor(): number {
+    return this.layout.getWidthFactor();
+  }
+
   public destroy() {
     this.resizeObserver.disconnect();
     this.pianoRoll.destroy();
@@ -191,6 +201,14 @@ export default class Visualization {
       },
       onContainerXChange: (x) => {
         this.gestureAnimator.setPosition(x);
+      },
+      onWidthFactorChange: () => {
+        this.pianoRoll.forceRedraw();
+        this.piano.forceRedraw();
+      },
+      onWidthFactorTargetChange: () => {
+        this.pianoRoll.forceRedraw();
+        this.piano.forceRedraw();
       },
     });
     this.htmlContainer.append(this.app.canvas);
