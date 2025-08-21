@@ -21,6 +21,7 @@ describe('PianoController', () => {
   let mockLayout: Layout;
   const pianoY = 500;
   const containerHeight = 800;
+  const containerWidth = 1200;
 
   beforeEach(() => {
     onKeyDown = vi.fn();
@@ -30,6 +31,7 @@ describe('PianoController', () => {
     mockLayout = {
       getPianoY: vi.fn().mockReturnValue(pianoY),
       getHeight: vi.fn().mockReturnValue(containerHeight),
+      getWidth: vi.fn().mockReturnValue(containerWidth),
     } as unknown as Layout;
     
     // Create mock graphics objects for 88 keys
@@ -294,6 +296,85 @@ describe('PianoController', () => {
 
       expect(onKeyUp).toHaveBeenCalledWith(key1 + 21);
       expect(onKeyUp).not.toHaveBeenCalledWith(key2 + 21);
+    });
+  });
+
+  describe('boundary detection', () => {
+    it('should release key when mouse moves left of piano', () => {
+      const keyIndex = 39;
+      const mousedownHandler = (graphics[keyIndex].on as any).mock.calls.find(
+        (call: any) => call[0] === 'mousedown'
+      )[1];
+      const globalMouseMoveHandler = (graphics[0].on as any).mock.calls.find(
+        (call: any) => call[0] === 'globalmousemove'
+      )[1];
+
+      mousedownHandler();
+      globalMouseMoveHandler({ clientX: -10, clientY: pianoY + 50 });
+
+      expect(onKeyUp).toHaveBeenCalledWith(keyIndex + 21);
+    });
+
+    it('should release key when mouse moves right of piano', () => {
+      const keyIndex = 39;
+      const mousedownHandler = (graphics[keyIndex].on as any).mock.calls.find(
+        (call: any) => call[0] === 'mousedown'
+      )[1];
+      const globalMouseMoveHandler = (graphics[0].on as any).mock.calls.find(
+        (call: any) => call[0] === 'globalmousemove'
+      )[1];
+
+      mousedownHandler();
+      globalMouseMoveHandler({ clientX: containerWidth + 10, clientY: pianoY + 50 });
+
+      expect(onKeyUp).toHaveBeenCalledWith(keyIndex + 21);
+    });
+
+    it('should release key when mouse moves below piano', () => {
+      const keyIndex = 39;
+      const mousedownHandler = (graphics[keyIndex].on as any).mock.calls.find(
+        (call: any) => call[0] === 'mousedown'
+      )[1];
+      const globalMouseMoveHandler = (graphics[0].on as any).mock.calls.find(
+        (call: any) => call[0] === 'globalmousemove'
+      )[1];
+
+      mousedownHandler();
+      globalMouseMoveHandler({ clientX: 600, clientY: containerHeight + 10 });
+
+      expect(onKeyUp).toHaveBeenCalledWith(keyIndex + 21);
+    });
+
+    it('should release key when touch moves left of piano', () => {
+      const keyIndex = 39;
+      const pointerId = 1;
+      const touchStartHandler = (graphics[keyIndex].on as any).mock.calls.find(
+        (call: any) => call[0] === 'touchstart'
+      )[1];
+      const globalTouchMoveHandler = (graphics[0].on as any).mock.calls.find(
+        (call: any) => call[0] === 'globaltouchmove'
+      )[1];
+
+      touchStartHandler({ preventDefault: vi.fn(), pointerId });
+      globalTouchMoveHandler({ pointerId, clientX: -10, clientY: pianoY + 50 });
+
+      expect(onKeyUp).toHaveBeenCalledWith(keyIndex + 21);
+    });
+
+    it('should release key when touch moves right of piano', () => {
+      const keyIndex = 39;
+      const pointerId = 1;
+      const touchStartHandler = (graphics[keyIndex].on as any).mock.calls.find(
+        (call: any) => call[0] === 'touchstart'
+      )[1];
+      const globalTouchMoveHandler = (graphics[0].on as any).mock.calls.find(
+        (call: any) => call[0] === 'globaltouchmove'
+      )[1];
+
+      touchStartHandler({ preventDefault: vi.fn(), pointerId });
+      globalTouchMoveHandler({ pointerId, clientX: containerWidth + 10, clientY: pianoY + 50 });
+
+      expect(onKeyUp).toHaveBeenCalledWith(keyIndex + 21);
     });
   });
 

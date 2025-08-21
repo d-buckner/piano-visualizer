@@ -95,6 +95,10 @@ export default class Layout {
     this.setVisibleKeys(targetRange);
   }
 
+  public getWidth(): number {
+    return this.width;
+  }
+
   public setHeight(height: number) {
     this.height = height;
   }

@@ -38,9 +38,10 @@ export default class PianoController {
         return;
       }
 
-      if (e.clientY < this.layout.getPianoY()) {
+      if (this.isEventOutsidePiano(e)) {
         this.options.onKeyUp(this.mouseMidi);
         this.mouseMidi = null;
+        this.isMouseDown = false;
       }
     });
 
@@ -51,10 +52,8 @@ export default class PianoController {
         return;
       }
 
-      // Release key if finger moves above piano area or below container bounds
-      if (e.clientY < this.layout.getPianoY() || e.clientY > this.layout.getHeight()) {
-        this.options.onKeyUp(midi);
-        this.touchMidiById.delete(pointerId);
+      if (this.isEventOutsidePiano(e)) {
+        this.handleTouchEnd(pointerId);
       }
     });
 
@@ -68,6 +67,12 @@ export default class PianoController {
     });
   }
 
+  private isEventOutsidePiano(e: FPE) {
+    return e.clientY > this.layout.getHeight() // below piano
+      || e.clientY < this.layout.getPianoY()   // above piano
+      || e.clientX < 0                         // left of piano
+      || e.clientX > this.layout.getWidth();   // right of piano
+  }
 
   private handleTouchEnd(pointerId: number) {
     const pointerMidi = this.touchMidiById.get(pointerId);

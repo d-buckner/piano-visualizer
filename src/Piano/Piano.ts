@@ -78,32 +78,20 @@ export default class Piano {
         if (!this.isValidMidi(midi)) return;
 
         const existingEntries = this.activeKeys.get(midi);
-        if (!existingEntries) {
-            return;
-        }
+        if (!existingEntries) return;
 
         if (!identifier) {
-            if (existingEntries.length === 1) {
-                this.activeKeys.delete(midi);
-                this.needsRedraw = true;
-                return;
-            }
-
-            this.activeKeys.get(midi)!.pop();
+            existingEntries.pop();
             this.needsRedraw = true;
             return;
         }
 
-        const newActiveKeys = this.activeKeys
-            .get(midi)
-            ?.filter((activeKey) => activeKey.identifier !== identifier);
-        if (!newActiveKeys?.length) {
-            this.activeKeys.delete(midi);
-            this.needsRedraw = true;
-            return;
-        }
+        const indexToRemove = existingEntries.findIndex(
+            (activeKey) => activeKey.identifier === identifier
+        );
+        if (indexToRemove === -1) return;
 
-        this.activeKeys.set(midi, newActiveKeys);
+        existingEntries.splice(indexToRemove, 1);
         this.needsRedraw = true;
     }
 

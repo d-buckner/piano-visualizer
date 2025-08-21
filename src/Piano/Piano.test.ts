@@ -33,6 +33,10 @@ vi.mock('pixi.js', () => ({
 vi.mock('./PianoController');
 vi.mock('../Layout');
 
+// Gradient color stop positions for base colors
+const NATURAL_KEY_BASE_COLOR_STOP = 0.4;
+const ACCIDENTAL_KEY_BASE_COLOR_STOP = 1;
+
 describe('Piano', () => {
   let piano: Piano;
   let mockContainer: any;
@@ -145,6 +149,93 @@ describe('Piano', () => {
 
     it('should handle keyUp for non-active key gracefully', () => {
       expect(() => piano.keyUp(60)).not.toThrow();
+    });
+
+    it('should show most recent color when multiple identifiers press same key', () => {
+      const fillSpy = vi.fn().mockReturnThis();
+      const addColorStopSpy = vi.fn();
+      
+      (FillGradient as any).mockImplementation(() => ({
+        addColorStop: addColorStopSpy,
+        buildLinearGradient: vi.fn(),
+        texture: null,
+      }));
+      
+      Graphics.mockImplementation(() => ({ 
+        fill: fillSpy,
+        clear: vi.fn().mockReturnThis(),
+        roundRect: vi.fn().mockReturnThis(),
+        stroke: vi.fn().mockReturnThis(),
+      }));
+      
+      piano.keyDown(60, '#ff0000', 'first');
+      piano.keyDown(60, '#00ff00', 'second');  // Most recent
+      piano.render();
+      
+      // Should use gradient with #00ff00 as the base color (MIDI 60 is natural key)
+      expect(addColorStopSpy).toHaveBeenCalledWith(NATURAL_KEY_BASE_COLOR_STOP, '#00ff00');
+      
+      // Should NOT use #ff0000 as base color
+      expect(addColorStopSpy).not.toHaveBeenCalledWith(NATURAL_KEY_BASE_COLOR_STOP, '#ff0000');
+    });
+
+    it('should revert to previous color when most recent identifier released', () => {
+      const fillSpy = vi.fn().mockReturnThis();
+      const addColorStopSpy = vi.fn();
+      
+      (FillGradient as any).mockImplementation(() => ({
+        addColorStop: addColorStopSpy,
+        buildLinearGradient: vi.fn(),
+        texture: null,
+      }));
+      
+      Graphics.mockImplementation(() => ({ 
+        fill: fillSpy,
+        clear: vi.fn().mockReturnThis(),
+        roundRect: vi.fn().mockReturnThis(),
+        stroke: vi.fn().mockReturnThis(),
+      }));
+      
+      piano.keyDown(60, '#ff0000', 'first');
+      piano.keyDown(60, '#00ff00', 'second');
+      addColorStopSpy.mockClear(); // Clear previous calls
+      
+      piano.keyUp(60, 'second');  // Remove most recent
+      piano.render();
+      
+      // Should revert to gradient with #ff0000 as base color (MIDI 60 is natural key)
+      expect(addColorStopSpy).toHaveBeenCalledWith(NATURAL_KEY_BASE_COLOR_STOP, '#ff0000');
+      
+      // Should NOT use #00ff00 as base color (removed color)
+      expect(addColorStopSpy).not.toHaveBeenCalledWith(NATURAL_KEY_BASE_COLOR_STOP, '#00ff00');
+    });
+
+    it('should show most recent color for accidental keys', () => {
+      const fillSpy = vi.fn().mockReturnThis();
+      const addColorStopSpy = vi.fn();
+      
+      (FillGradient as any).mockImplementation(() => ({
+        addColorStop: addColorStopSpy,
+        buildLinearGradient: vi.fn(),
+        texture: null,
+      }));
+      
+      Graphics.mockImplementation(() => ({ 
+        fill: fillSpy,
+        clear: vi.fn().mockReturnThis(),
+        roundRect: vi.fn().mockReturnThis(),
+        stroke: vi.fn().mockReturnThis(),
+      }));
+      
+      piano.keyDown(61, '#ff0000', 'first');   // C# - accidental key
+      piano.keyDown(61, '#00ff00', 'second');  // Most recent
+      piano.render();
+      
+      // Should use gradient with #00ff00 as the base color (MIDI 61 is accidental key)
+      expect(addColorStopSpy).toHaveBeenCalledWith(ACCIDENTAL_KEY_BASE_COLOR_STOP, '#00ff00');
+      
+      // Should NOT use #ff0000 as base color
+      expect(addColorStopSpy).not.toHaveBeenCalledWith(ACCIDENTAL_KEY_BASE_COLOR_STOP, '#ff0000');
     });
 
     it('should ignore invalid MIDI notes', () => {
