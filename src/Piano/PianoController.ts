@@ -5,38 +5,40 @@
  */
 import { type FederatedPointerEvent, Graphics } from 'pixi.js';
 import Cursor, { CursorType } from '../lib/Cursor';
+import type Layout from '../Layout';
+
 
 type Options = {
   graphics: Graphics[];
   onKeyDown: (midi: number) => void;
   onKeyUp: (midi: number) => void;
-  pianoY: number;
+  layout: Layout;
 };
 
 type FPE = FederatedPointerEvent;
 
 export default class PianoController {
   private options: Options;
-  private pianoY: number;
+  private layout: Layout;
   private isMouseDown = false;
   private mouseMidi: number | null = null;
   private touchMidiById: Map<number, number> = new Map();
 
   constructor(options: Options) {
     this.options = options;
-    this.pianoY = options.pianoY;
+    this.layout = options.layout;
     this.options.graphics.forEach(this.addKeyHandlers.bind(this));
     const globalEventTarget = this.options.graphics[0];
 
     globalEventTarget.on('globalmousemove', (e: FPE) => {
       if (this.mouseMidi === null) {
-        if (e.clientY > this.pianoY) {
+        if (e.clientY > this.layout.getPianoY()) {
           Cursor.set(CursorType.POINTER);
         }
         return;
       }
 
-      if (e.clientY < this.pianoY) {
+      if (e.clientY < this.layout.getPianoY()) {
         this.options.onKeyUp(this.mouseMidi);
         this.mouseMidi = null;
       }
@@ -49,7 +51,8 @@ export default class PianoController {
         return;
       }
 
-      if (e.clientY < this.pianoY) {
+      // Release key if finger moves above piano area or below container bounds
+      if (e.clientY < this.layout.getPianoY() || e.clientY > this.layout.getHeight()) {
         this.options.onKeyUp(midi);
         this.touchMidiById.delete(pointerId);
       }
@@ -65,9 +68,6 @@ export default class PianoController {
     });
   }
 
-  public updatePianoY(pianoY: number) {
-    this.pianoY = pianoY;
-  }
 
   private handleTouchEnd(pointerId: number) {
     const pointerMidi = this.touchMidiById.get(pointerId);

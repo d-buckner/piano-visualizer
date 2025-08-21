@@ -38,7 +38,6 @@ type KeyElement = {
 export default class Piano {
     private config: Config;
     private container: Container;
-    private pianoController: PianoController;
     private graphics: Graphics[];
     private layout: Layout;
     private activeKeys: Map<number, ActiveKey[]> = new Map();
@@ -50,11 +49,11 @@ export default class Piano {
         this.container = new Container();
         this.layout = config.layout;
         this.graphics = Array.from({ length: MIDI_RANGE.TOTAL_KEYS }, () => new Graphics());
-        this.pianoController = new PianoController({
+        new PianoController({
             graphics: this.graphics,
             onKeyDown: this.config.onKeyDown,
             onKeyUp: this.config.onKeyUp,
-            pianoY: this.config.layout.getPianoY(),
+            layout: this.config.layout,
         });
         this.render();
     }
@@ -136,7 +135,6 @@ export default class Piano {
 
         const pianoY = this.layout.getPianoY();
         this.container.y = pianoY;
-        this.pianoController.updatePianoY(pianoY);
         
         this.needsRedraw = false;
     }

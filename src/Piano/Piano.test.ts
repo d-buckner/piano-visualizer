@@ -183,7 +183,6 @@ describe('Piano', () => {
       piano.render();
       
       expect(mockLayout.getPianoY).toHaveBeenCalled();
-      expect(PianoController.prototype.updatePianoY).toHaveBeenCalledWith(500);
     });
   });
 

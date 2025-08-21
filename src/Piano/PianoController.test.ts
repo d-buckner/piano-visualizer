@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import PianoController from './PianoController';
 import { Graphics } from 'pixi.js';
 import Cursor, { CursorType } from '../lib/Cursor';
+import type Layout from '../Layout';
 
 vi.mock('../lib/Cursor', () => ({
   default: {
@@ -17,11 +18,19 @@ describe('PianoController', () => {
   let graphics: Graphics[];
   let onKeyDown: ReturnType<typeof vi.fn>;
   let onKeyUp: ReturnType<typeof vi.fn>;
+  let mockLayout: Layout;
   const pianoY = 500;
+  const containerHeight = 800;
 
   beforeEach(() => {
     onKeyDown = vi.fn();
     onKeyUp = vi.fn();
+    
+    // Create mock layout
+    mockLayout = {
+      getPianoY: vi.fn().mockReturnValue(pianoY),
+      getHeight: vi.fn().mockReturnValue(containerHeight),
+    } as unknown as Layout;
     
     // Create mock graphics objects for 88 keys
     graphics = Array.from({ length: 88 }, (_, i) => {
@@ -35,7 +44,7 @@ describe('PianoController', () => {
       graphics,
       onKeyDown,
       onKeyUp,
-      pianoY,
+      layout: mockLayout,
     });
   });
 
@@ -199,6 +208,25 @@ describe('PianoController', () => {
       expect(onKeyUp).toHaveBeenCalledWith(keyIndex + 21);
     });
 
+    it('should release key when touch moves below container bounds', () => {
+      const keyIndex = 39;
+      const pointerId = 1;
+      
+      // Start touch on key
+      const touchStartHandler = (graphics[keyIndex].on as any).mock.calls.find(
+        (call: any) => call[0] === 'touchstart'
+      )[1];
+      touchStartHandler({ preventDefault: vi.fn(), pointerId });
+
+      // Move touch below container
+      const globalTouchMoveHandler = (graphics[0].on as any).mock.calls.find(
+        (call: any) => call[0] === 'globaltouchmove'
+      )[1];
+      globalTouchMoveHandler({ pointerId, clientY: containerHeight + 10 });
+
+      expect(onKeyUp).toHaveBeenCalledWith(keyIndex + 21);
+    });
+
     it('should handle global touchend to prevent stuck keys', () => {
       const keyIndex = 39;
       const pointerId = 1;
@@ -269,24 +297,4 @@ describe('PianoController', () => {
     });
   });
 
-  describe('updatePianoY', () => {
-    it('should update the piano Y position', () => {
-      const newPianoY = 600;
-      controller.updatePianoY(newPianoY);
-
-      // Test that the new position is used by triggering a mouse move
-      const keyIndex = 39;
-      const mousedownHandler = (graphics[keyIndex].on as any).mock.calls.find(
-        (call: any) => call[0] === 'mousedown'
-      )[1];
-      const globalMouseMoveHandler = (graphics[0].on as any).mock.calls.find(
-        (call: any) => call[0] === 'globalmousemove'
-      )[1];
-
-      mousedownHandler();
-      globalMouseMoveHandler({ clientY: newPianoY - 10 });
-
-      expect(onKeyUp).toHaveBeenCalledWith(keyIndex + 21);
-    });
-  });
 });

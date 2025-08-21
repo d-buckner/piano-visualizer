@@ -32,12 +32,21 @@ type TouchStartContext = {
   [touchId: string]: MouseDownContext;
 };
 
+type TouchGestureType = 'pan' | 'pinch' | 'none';
+
+type PinchContext = {
+  initialDistance: number;
+  initialCenter: { x: number; y: number };
+  initialWidthFactor: number;
+};
+
 type MouseContext = ActiveMouseContext | InactiveMouseContext;
 
 export default class VisualizationController {
   private options: VisualizationControllerOptions;
   private mouseContext: MouseContext;
   private touchContext: TouchStartContext = {};
+  private pinchContext: PinchContext | null = null;
   private eventListeners: Record<string, Function>;
   private abortController: AbortController;
   private readonly passiveEventTypes = new Set<string>([]);
@@ -59,6 +68,9 @@ export default class VisualizationController {
       touchend: this.onTouchEnd,
       touchmove: this.onTouchMove,
       wheel: this.onWheel,
+      gesturestart: this.onGestureStart,
+      gesturechange: this.onGestureChange,
+      gestureend: this.onGestureEnd,
     };
 
     this.abortController = new AbortController();
@@ -128,11 +140,11 @@ export default class VisualizationController {
 
   private onTouchStart(e: TouchEvent) {
     const { layout } = this.options;
+    const gestureType = this.detectTouchGesture(e);
+
     for (const touch of e.touches) {
       const section = layout.getSection(touch.clientY);
       if (section === Section.PIANO) {
-        // piano events are handled by PianoController
-        // we ignore these so we don't step on it's toes
         return;
       }
 
@@ -143,6 +155,14 @@ export default class VisualizationController {
         containerX: layout.getX(),
         section: section,
         pianoHeight: layout.getPianoHeight(),
+      };
+    }
+
+    if (gestureType === 'pinch' && e.touches.length === 2) {
+      this.pinchContext = {
+        initialDistance: this.calculatePinchDistance(e.touches),
+        initialCenter: this.calculatePinchCenter(e.touches),
+        initialWidthFactor: layout.getWidthFactor(),
       };
     }
   }
@@ -156,6 +176,11 @@ export default class VisualizationController {
 
     if (touchIds.size === 0) {
       this.completeGesture();
+      this.pinchContext = null;
+    }
+
+    if (touchIds.size < 2) {
+      this.pinchContext = null;
     }
 
     Object.keys(this.touchContext).forEach((touchId) => {
@@ -166,19 +191,85 @@ export default class VisualizationController {
   }
 
   private onTouchMove(e: TouchEvent) {
-    const touch = e.changedTouches[0];
-    const touchEntry = this.touchContext[touch.identifier];
-    if (!touchEntry) {
+    e.preventDefault();
+    
+    if (e.touches.length === 2 && this.pinchContext) {
+      this.handlePinchMove(e);
       return;
     }
+    
+    if (e.changedTouches.length >= 1) {
+      this.handlePanMove(e);
+    }
+  }
 
+  private handlePinchMove(e: TouchEvent) {
+    if (!this.pinchContext) return;
 
-    e.preventDefault();
+    const { layout, onContainerXChange, onContainerTargetXChange, 
+            onWidthFactorChange } = this.options;
+
+    const currentDistance = this.calculatePinchDistance(e.touches);
+    const currentCenter = this.calculatePinchCenter(e.touches);
+    
+    const distanceRatio = currentDistance / this.pinchContext.initialDistance;
+    const newWidthFactor = layout.getClampedWidthFactor(
+      this.pinchContext.initialWidthFactor * distanceRatio
+    );
+
+    layout.setWidthFactor(newWidthFactor);
+    onWidthFactorChange(newWidthFactor);
+
+    const centerDeltaX = currentCenter.x - this.pinchContext.initialCenter.x;
+    if (Math.abs(centerDeltaX) > 5) {
+      const newX = layout.getClampedX(layout.getX() + centerDeltaX, true);
+      onContainerXChange(newX);
+      onContainerTargetXChange(newX);
+      
+      this.pinchContext.initialCenter = currentCenter;
+    }
+  }
+
+  private handlePanMove(e: TouchEvent) {
+    const touch = e.changedTouches[0];
+    const touchEntry = this.touchContext[touch.identifier];
+    if (!touchEntry) return;
+
     this.updatePointerX(
       touchEntry.clientX,
       touch.clientX,
       touchEntry.containerX,
     );
+  }
+
+  private onGestureStart(e: any) {
+    e.preventDefault();
+    const { layout } = this.options;
+    this.pinchContext = {
+      initialDistance: 1,
+      initialCenter: { x: e.clientX || 0, y: e.clientY || 0 },
+      initialWidthFactor: layout.getWidthFactor(),
+    };
+  }
+
+  private onGestureChange(e: any) {
+    if (!this.pinchContext) return;
+    e.preventDefault();
+
+    const { layout, onWidthFactorChange } = this.options;
+    const scale = e.scale || 1;
+    const newWidthFactor = layout.getClampedWidthFactor(
+      this.pinchContext.initialWidthFactor * scale
+    );
+
+    layout.setWidthFactor(newWidthFactor);
+    onWidthFactorChange(newWidthFactor);
+  }
+
+  private onGestureEnd(e: any) {
+    e.preventDefault();
+    this.completeGesture();
+    this.pinchContext = null;
   }
 
   private onWheel(e: WheelEvent) {
@@ -256,5 +347,28 @@ export default class VisualizationController {
       isDown: false,
     };
     this.completeGesture();
+  }
+
+  private detectTouchGesture(e: TouchEvent): TouchGestureType {
+    const touchCount = e.touches.length;
+    if (touchCount === 1) return 'pan';
+    if (touchCount === 2) return 'pinch';
+    return 'none';
+  }
+
+  private calculatePinchDistance(touches: TouchList): number {
+    if (touches.length < 2) return 0;
+    return Math.hypot(
+      touches[0].clientX - touches[1].clientX,
+      touches[0].clientY - touches[1].clientY
+    );
+  }
+
+  private calculatePinchCenter(touches: TouchList): { x: number; y: number } {
+    if (touches.length < 2) return { x: 0, y: 0 };
+    return {
+      x: (touches[0].clientX + touches[1].clientX) / 2,
+      y: (touches[0].clientY + touches[1].clientY) / 2,
+    };
   }
 }
