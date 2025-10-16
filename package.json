@@ -2,7 +2,7 @@
   "name": "piano-visualizer",
   "author": "d-buckner",
   "repository": "https://github.com/d-buckner/piano-visualizer",
-  "version": "1.0.24",
+  "version": "1.0.25",
   "type": "module",
   "main": "dist/index.js",
   "files": [
