@@ -140,20 +140,24 @@ export default class VisualizationController {
 
   private onTouchStart(e: TouchEvent) {
     const { layout } = this.options;
+
+    const allTouchesInPianoRoll = Array.from(e.touches).every(
+      touch => layout.getSection(touch.clientY) === Section.PIANO_ROLL
+    );
+
+    if (!allTouchesInPianoRoll) {
+      return;
+    }
+
+    e.preventDefault();
     const gestureType = this.detectTouchGesture(e);
 
     for (const touch of e.touches) {
-      const section = layout.getSection(touch.clientY);
-      if (section === Section.PIANO) {
-        return;
-      }
-
-      e.preventDefault();
       this.touchContext[touch.identifier] = {
         clientX: touch.clientX,
         clientY: touch.clientY,
         containerX: layout.getX(),
-        section: section,
+        section: Section.PIANO_ROLL,
         pianoHeight: layout.getPianoHeight(),
       };
     }

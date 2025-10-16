@@ -222,15 +222,85 @@ describe('VisualizationController', () => {
 
     it('should handle multiple simultaneous touches', () => {
       const touchstartHandler = getEventHandler('touchstart');
-      
+
       const event = createTouchEvent('touchstart', [
         { identifier: 1, clientX: 100, clientY: 300 },
         { identifier: 2, clientX: 200, clientY: 350 }
       ]);
-      
+
       touchstartHandler(event);
-      
+
       expect(event.preventDefault).toHaveBeenCalled();
+    });
+
+    it('should ignore mixed touches (one in piano, one in piano roll)', () => {
+      (layout.getSection as any).mockImplementation((y: number) => {
+        return y > 500 ? Section.PIANO : Section.PIANO_ROLL;
+      });
+
+      const touchstartHandler = getEventHandler('touchstart');
+      const event = createTouchEvent('touchstart', [
+        { identifier: 1, clientX: 100, clientY: 300 }, // Piano roll
+        { identifier: 2, clientX: 200, clientY: 600 }  // Piano
+      ]);
+
+      touchstartHandler(event);
+
+      expect(event.preventDefault).not.toHaveBeenCalled();
+      expect(onContainerXChange).not.toHaveBeenCalled();
+    });
+
+    it('should not trigger pinch zoom when all touches in piano area', () => {
+      (layout.getSection as any).mockReturnValue(Section.PIANO);
+
+      const touchstartHandler = getEventHandler('touchstart');
+      const touchmoveHandler = getEventHandler('touchmove');
+      const event = createTouchEvent('touchstart', [
+        { identifier: 1, clientX: 100, clientY: 600 },
+        { identifier: 2, clientX: 200, clientY: 650 }
+      ]);
+
+      touchstartHandler(event);
+
+      const moveEvent = createTouchEvent('touchmove', [
+        { identifier: 1, clientX: 110, clientY: 600 },
+        { identifier: 2, clientX: 210, clientY: 650 }
+      ]);
+      touchmoveHandler(moveEvent);
+
+      expect(event.preventDefault).not.toHaveBeenCalled();
+      expect(onContainerXChange).not.toHaveBeenCalled();
+    });
+
+    it('should not trigger pinch zoom with mixed touches (one piano, one piano roll)', () => {
+      (layout.getSection as any).mockImplementation((y: number) => {
+        return y > 500 ? Section.PIANO : Section.PIANO_ROLL;
+      });
+
+      const touchstartHandler = getEventHandler('touchstart');
+      const event = createTouchEvent('touchstart', [
+        { identifier: 1, clientX: 100, clientY: 300 }, // Piano roll
+        { identifier: 2, clientX: 200, clientY: 600 }  // Piano
+      ]);
+
+      touchstartHandler(event);
+
+      expect(event.preventDefault).not.toHaveBeenCalled();
+    });
+
+    it('should trigger pinch zoom only when both touches in piano roll', () => {
+      (layout.getSection as any).mockReturnValue(Section.PIANO_ROLL);
+
+      const touchstartHandler = getEventHandler('touchstart');
+      const event = createTouchEvent('touchstart', [
+        { identifier: 1, clientX: 100, clientY: 300 },
+        { identifier: 2, clientX: 200, clientY: 350 }
+      ]);
+
+      touchstartHandler(event);
+
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(layout.getWidthFactor).toHaveBeenCalled();
     });
   });
 
@@ -258,7 +328,7 @@ describe('VisualizationController', () => {
       
       // Setup layout mocks for the gesture sequence
       (layout.getX as any).mockReturnValue(0); // Initial position
-      (layout.getClampedX as any).mockImplementation((x) => x); // Pass through
+      (layout.getClampedX as any).mockImplementation((x: number) => x); // Pass through
       
       // Start gesture at initial position
       mousedownHandler(new MouseEvent('mousedown', { clientX: 100, clientY: 300 }));
