@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import PianoVisualization from './index';
 
 // Mock the entire Visualization module
@@ -34,16 +34,16 @@ describe('index (main export)', () => {
       onKeyDown: vi.fn(),
       onKeyUp: vi.fn(),
     };
-    
-    const visualization = new PianoVisualization(config);
-    
+
+    new PianoVisualization(config);
+
     expect(PianoVisualization).toHaveBeenCalledWith(config);
   });
 
   it('should have expected public methods', () => {
     const container = document.createElement('div');
-    const visualization = new PianoVisualization({ container });
-    
+    const visualization = new PianoVisualization({ container }) as any;
+
     expect(visualization.init).toBeDefined();
     expect(visualization.destroy).toBeDefined();
     expect(visualization.keyDown).toBeDefined();

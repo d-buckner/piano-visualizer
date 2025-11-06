@@ -14,7 +14,6 @@ vi.mock('../lib/Cursor', () => ({
 }));
 
 describe('PianoController', () => {
-  let controller: PianoController;
   let graphics: Graphics[];
   let onKeyDown: ReturnType<typeof vi.fn>;
   let onKeyUp: ReturnType<typeof vi.fn>;
@@ -35,14 +34,14 @@ describe('PianoController', () => {
     } as unknown as Layout;
     
     // Create mock graphics objects for 88 keys
-    graphics = Array.from({ length: 88 }, (_, i) => {
+    graphics = Array.from({ length: 88 }, () => {
       const graphic = new Graphics();
       graphic.on = vi.fn();
       graphic.eventMode = 'static';
       return graphic;
     });
 
-    controller = new PianoController({
+    new PianoController({
       graphics,
       onKeyDown,
       onKeyUp,

@@ -81,7 +81,6 @@ describe('Visualization', () => {
       // Set an initial position (user has scrolled)
       layout.setX(1000);
       renderContainer.x = 1000;
-      visualization['containerTargetX'] = 1000;
 
       // Simulate resize that changes width factor
       const mockEntry = {
@@ -96,7 +95,6 @@ describe('Visualization', () => {
 
       // Verify that renderContainer.x was immediately synced to layout.getX()
       expect(renderContainer.x).toBe(layout.getX());
-      expect(visualization['containerTargetX']).toBe(layout.getX());
     });
 
     it('should handle breakpoint transitions during resize', async () => {
@@ -128,7 +126,6 @@ describe('Visualization', () => {
 
       // Verify container is synced even across breakpoint changes
       expect(renderContainer.x).toBe(layout.getX());
-      expect(visualization['containerTargetX']).toBe(layout.getX());
       
       // Verify that visible keys actually changed (confirming breakpoint crossed)
       expect(layout.getVisibleKeys()).not.toBe(initialRange);
@@ -160,7 +157,6 @@ describe('Visualization', () => {
 
       // Container should still be synced
       expect(renderContainer.x).toBe(layout.getX());
-      expect(visualization['containerTargetX']).toBe(layout.getX());
     });
   });
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import Cursor, { CursorType } from './Cursor';
 
 describe('Cursor', () => {
@@ -38,15 +38,9 @@ describe('Cursor', () => {
     });
 
     it('should throw error if not initialized', () => {
-      // Create a new cursor instance without initialization
-      const uninitializedCursor = class extends Cursor {
-        public static resetForTesting() {
-          (Cursor as any).targetElement = null;
-        }
-      };
-      
-      uninitializedCursor.resetForTesting();
-      
+      // Reset cursor for testing
+      (Cursor as any).targetElement = null;
+
       expect(() => Cursor.set(CursorType.POINTER)).toThrow('Cannot set cursor before initialization');
       
       // Re-initialize for other tests

@@ -1,8 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import Piano from './Piano';
-import { Container, Graphics, FillGradient, Color } from 'pixi.js';
-import Layout from '../Layout';
-import PianoController from './PianoController';
+import { Container, Graphics, FillGradient } from 'pixi.js';
 
 vi.mock('pixi.js', () => ({
   Container: vi.fn().mockImplementation(() => ({
@@ -21,7 +19,7 @@ vi.mock('pixi.js', () => ({
     buildLinearGradient: vi.fn(),
     texture: null,
   })),
-  Color: vi.fn().mockImplementation((color) => ({
+  Color: vi.fn().mockImplementation(() => ({
     toArray: vi.fn().mockReturnValue([1, 1, 1, 1]),
     toHex: vi.fn().mockReturnValue('#ffffff'),
     red: 1,
@@ -161,7 +159,7 @@ describe('Piano', () => {
         texture: null,
       }));
       
-      Graphics.mockImplementation(() => ({ 
+      (Graphics as any).mockImplementation(() => ({
         fill: fillSpy,
         clear: vi.fn().mockReturnThis(),
         roundRect: vi.fn().mockReturnThis(),
@@ -189,7 +187,7 @@ describe('Piano', () => {
         texture: null,
       }));
       
-      Graphics.mockImplementation(() => ({ 
+      (Graphics as any).mockImplementation(() => ({
         fill: fillSpy,
         clear: vi.fn().mockReturnThis(),
         roundRect: vi.fn().mockReturnThis(),
@@ -220,7 +218,7 @@ describe('Piano', () => {
         texture: null,
       }));
       
-      Graphics.mockImplementation(() => ({ 
+      (Graphics as any).mockImplementation(() => ({
         fill: fillSpy,
         clear: vi.fn().mockReturnThis(),
         roundRect: vi.fn().mockReturnThis(),
@@ -308,7 +306,7 @@ describe('Piano', () => {
       piano.render();
 
       // Mock texture on gradients
-      const mockTexture = { destroy: vi.fn() };
+      const mockTexture = { destroy: vi.fn() } as any;
       FillGradient.prototype.texture = mockTexture;
 
       piano.destroy();

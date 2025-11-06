@@ -46,7 +46,6 @@ export default class Visualization {
   private layout: Layout;
   private htmlContainer: HTMLDivElement;
   private renderContainer: Container;
-  private containerTargetX = 0;
   private resizeObserver: ResizeObserver;
   private gestureAnimator: GestureAnimator;
 
@@ -107,7 +106,6 @@ export default class Visualization {
       const newX = this.layout.getX();
       this.gestureAnimator.setPosition(newX);
       this.gestureAnimator.setTarget(newX);
-      this.containerTargetX = newX;
     });
     this.resizeObserver.observe(config.container);
   }
@@ -138,7 +136,6 @@ export default class Visualization {
     const newX = this.layout.getX();
     this.gestureAnimator.setPosition(newX);
     this.gestureAnimator.setTarget(newX);
-    this.containerTargetX = newX;
   }
 
   public getRange(): Range {
@@ -196,7 +193,6 @@ export default class Visualization {
       canvas: this.app.canvas,
       layout: this.layout,
       onContainerTargetXChange: (x) => {
-        this.containerTargetX = x;
         this.gestureAnimator.setTarget(x);
       },
       onContainerXChange: (x) => {

@@ -8,11 +8,8 @@ vi.mock('../containerStyle', () => ({
 
 describe('applyStyle', () => {
   let appendSpy: ReturnType<typeof vi.spyOn>;
-  let originalHead: HTMLHeadElement;
 
   beforeEach(() => {
-    // Store original document.head
-    originalHead = document.head;
     
     // Mock document.head.append
     appendSpy = vi.spyOn(document.head, 'append').mockImplementation(() => {});

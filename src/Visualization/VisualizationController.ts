@@ -139,17 +139,12 @@ export default class VisualizationController {
   }
 
   private onTouchStart(e: TouchEvent) {
-    const { layout } = this.options;
-
-    const allTouchesInPianoRoll = Array.from(e.touches).every(
-      touch => layout.getSection(touch.clientY) === Section.PIANO_ROLL
-    );
-
-    if (!allTouchesInPianoRoll) {
+    if (!this.shouldPreventDefault(e.touches)) {
       return;
     }
 
     e.preventDefault();
+    const { layout } = this.options;
     const gestureType = this.detectTouchGesture(e);
 
     for (const touch of e.touches) {
@@ -172,6 +167,10 @@ export default class VisualizationController {
   }
 
   private onTouchEnd(e: TouchEvent) {
+    if (Object.keys(this.touchContext).length === 0) {
+      return;
+    }
+
     e.preventDefault();
     const touchIds = new Set();
     for (const touch of e.touches) {
@@ -194,14 +193,34 @@ export default class VisualizationController {
     });
   }
 
+  private shouldPreventDefault(touches: TouchList): boolean {
+    const { layout } = this.options;
+    for (let i = 0; i < touches.length; i++) {
+      if (layout.getSection(touches[i].clientY) !== Section.PIANO_ROLL) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  private isTrackingTouch(e: TouchEvent): boolean {
+    // Check first changed touch only - if we're handling the gesture, all touches are ours
+    return this.touchContext[e.changedTouches[0]?.identifier] !== undefined;
+  }
+
   private onTouchMove(e: TouchEvent) {
+    if (!this.isTrackingTouch(e)) {
+      return;
+    }
+
     e.preventDefault();
-    
+
     if (e.touches.length === 2 && this.pinchContext) {
       this.handlePinchMove(e);
       return;
     }
-    
+
     if (e.changedTouches.length >= 1) {
       this.handlePanMove(e);
     }
@@ -247,8 +266,13 @@ export default class VisualizationController {
   }
 
   private onGestureStart(e: any) {
-    e.preventDefault();
     const { layout } = this.options;
+
+    if (layout.getSection(e.clientY || 0) === Section.PIANO) {
+      return;
+    }
+
+    e.preventDefault();
     this.pinchContext = {
       initialDistance: 1,
       initialCenter: { x: e.clientX || 0, y: e.clientY || 0 },
@@ -258,6 +282,7 @@ export default class VisualizationController {
 
   private onGestureChange(e: any) {
     if (!this.pinchContext) return;
+
     e.preventDefault();
 
     const { layout, onWidthFactorChange } = this.options;
@@ -271,6 +296,8 @@ export default class VisualizationController {
   }
 
   private onGestureEnd(e: any) {
+    if (!this.pinchContext) return;
+
     e.preventDefault();
     this.completeGesture();
     this.pinchContext = null;
