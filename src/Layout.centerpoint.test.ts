@@ -128,7 +128,7 @@ describe('Layout Center-Point System', () => {
   });
 
   describe('mathematical properties', () => {
-    it('should maintain order: lower MIDI = lower X (generally)', () => {
+    it('should maintain order: higher MIDI requires lower container X', () => {
       // Test with natural keys to avoid quantization issues
       const midi1 = 48; // C3
       const midi2 = 60; // C4  
@@ -138,8 +138,8 @@ describe('Layout Center-Point System', () => {
       const x2 = layout.centerMidiToX(midi2);
       const x3 = layout.centerMidiToX(midi3);
       
-      expect(x1).toBeLessThan(x2);
-      expect(x2).toBeLessThan(x3);
+      expect(x1).toBeGreaterThan(x2);
+      expect(x2).toBeGreaterThan(x3);
     });
 
     it('should handle edge cases gracefully', () => {
@@ -206,6 +206,14 @@ describe('Layout Center-Point System', () => {
       
       expect(newX).not.toBe(originalX);
       expect(layout.getVisibleKeys()).toBe(12);
+    });
+
+    it('should center the requested MIDI note when setting range', () => {
+      layout.setRange(72, 12); // C5 center
+
+      const centeredKey = layout.getKeyElement(72);
+
+      expect(centeredKey.x + layout.getX()).toBeCloseTo(layout.getWidth() / 2);
     });
 
     it('should maintain consistency between range and visible keys', () => {

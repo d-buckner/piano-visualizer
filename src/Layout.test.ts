@@ -53,6 +53,20 @@ describe('Layout', () => {
       const validX = 100;
       expect(layout.getClampedX(validX)).toBe(validX);
     });
+
+    it('should allow positive minimum x when the last key would leave a right gap', () => {
+      layout = new Layout({
+        width: 2034,
+        height: 800,
+        pianoHeight: 250
+      });
+      layout.setVisibleKeys(32);
+
+      const lastKey = layout.getKeyElement(108);
+      const clampedX = layout.getClampedX(-10000);
+
+      expect(lastKey.x + lastKey.width + clampedX).toBeCloseTo(layout.getWidth());
+    });
   });
 
   describe('key element positioning', () => {

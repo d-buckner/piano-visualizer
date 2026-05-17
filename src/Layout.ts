@@ -121,8 +121,8 @@ export default class Layout {
       return (this.width - pianoWidth) / 2 - firstKeyX;
     }
     
-    const minX = Math.min(0, this.width - lastKeyRight);
-    const maxX = Math.max(0, -firstKeyX);
+    const minX = this.width - lastKeyRight;
+    const maxX = -firstKeyX;
     
     return Math.max(minX, Math.min(maxX, x));
   }
@@ -288,7 +288,7 @@ export default class Layout {
   public xToCenterMidi(x: number): number {
     // Convert X coordinate to center MIDI note
     const screenCenterX = this.width / 2;
-    const offsetX = (x + screenCenterX) / this.widthFactor + DEFAULT_X_OFFSET;
+    const offsetX = (screenCenterX - x) / this.widthFactor + DEFAULT_X_OFFSET;
     
     // Find closest MIDI note to this X position
     let closestMidi = 60;
@@ -316,7 +316,7 @@ export default class Layout {
     const screenCenterX = this.width / 2;
     
     // Return the X offset needed to center this MIDI note
-    return scaledNoteX - screenCenterX;
+    return screenCenterX - scaledNoteX;
   }
 
   private getBreakpointRange(): number {
