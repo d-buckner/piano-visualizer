@@ -38,6 +38,20 @@ describe('Layout', () => {
       layout.setWidth(2000);
       expect(layout.getVisibleKeys()).toBe(16);
     });
+
+    it('should re-clamp x after width changes', () => {
+      layout = new Layout({
+        width: 1300,
+        height: 800,
+        pianoHeight: 250
+      });
+      layout.setVisibleKeys(32);
+      layout.setX(10000);
+
+      layout.setWidth(1250);
+
+      expect(layout.getX()).toBe(layout.getClampedX(layout.getX()));
+    });
   });
 
   describe('x position clamping', () => {

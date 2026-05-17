@@ -48,6 +48,7 @@ export default class Visualization {
   private renderContainer: Container;
   private resizeObserver: ResizeObserver;
   private gestureAnimator: GestureAnimator;
+  private controller: VisualizationController | null = null;
 
   constructor(config: Config) {
     this.config = config;
@@ -171,6 +172,8 @@ export default class Visualization {
   }
 
   public destroy() {
+    this.controller?.dispose();
+    this.controller = null;
     this.resizeObserver.disconnect();
     this.pianoRoll.destroy();
     this.app.destroy();
@@ -189,7 +192,7 @@ export default class Visualization {
 
     await this.app.init(options);
 
-    new VisualizationController({
+    this.controller = new VisualizationController({
       canvas: this.app.canvas,
       layout: this.layout,
       onContainerTargetXChange: (x) => {

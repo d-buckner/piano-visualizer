@@ -82,6 +82,9 @@ export default class Piano {
 
         if (!identifier) {
             existingEntries.pop();
+            if (existingEntries.length === 0) {
+                this.activeKeys.delete(midi);
+            }
             this.needsRedraw = true;
             return;
         }
@@ -92,6 +95,9 @@ export default class Piano {
         if (indexToRemove === -1) return;
 
         existingEntries.splice(indexToRemove, 1);
+        if (existingEntries.length === 0) {
+            this.activeKeys.delete(midi);
+        }
         this.needsRedraw = true;
     }
 

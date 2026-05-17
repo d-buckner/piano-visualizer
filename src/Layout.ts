@@ -93,6 +93,7 @@ export default class Layout {
         : newRangeFromWidth;
 
     this.setVisibleKeys(targetRange);
+    this.setX(this.x);
   }
 
   public getWidth(): number {

@@ -234,5 +234,20 @@ describe('Visualization', () => {
       
       expect(disconnectSpy).toHaveBeenCalled();
     });
+
+    it('should dispose controller event listeners on destroy', async () => {
+      visualization = new Visualization({
+        container: mockContainer
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      const disposeSpy = vi.spyOn(visualization['controller']!, 'dispose');
+
+      visualization.destroy();
+
+      expect(disposeSpy).toHaveBeenCalled();
+      expect(visualization['controller']).toBeNull();
+    });
   });
 });

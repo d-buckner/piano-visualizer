@@ -123,6 +123,7 @@ describe('Piano', () => {
       
       piano.render();
       expect(Graphics).toHaveBeenCalled();
+      expect(piano['activeKeys'].has(60)).toBe(false);
     });
 
     it('should remove last color when no identifier is provided', () => {
@@ -143,6 +144,13 @@ describe('Piano', () => {
       // Should still have player2's color active
       piano.render();
       expect(Graphics).toHaveBeenCalled();
+    });
+
+    it('should remove keyed active entries when the last identifier is released', () => {
+      piano.keyDown(60, '#ff0000', 'player1');
+      piano.keyUp(60, 'player1');
+
+      expect(piano['activeKeys'].has(60)).toBe(false);
     });
 
     it('should handle keyUp for non-active key gracefully', () => {
