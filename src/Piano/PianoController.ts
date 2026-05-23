@@ -32,7 +32,7 @@ export default class PianoController {
 
     globalEventTarget.on('globalmousemove', (e: FPE) => {
       if (this.mouseMidi === null) {
-        if (e.clientY > this.layout.getPianoY()) {
+        if (e.screenY > this.layout.getPianoY()) {
           Cursor.set(CursorType.POINTER);
         }
         return;
@@ -68,10 +68,10 @@ export default class PianoController {
   }
 
   private isEventOutsidePiano(e: FPE) {
-    return e.clientY > this.layout.getHeight() // below piano
-      || e.clientY < this.layout.getPianoY()   // above piano
-      || e.clientX < 0                         // left of piano
-      || e.clientX > this.layout.getWidth();   // right of piano
+    return e.screenY > this.layout.getHeight() // below piano
+      || e.screenY < this.layout.getPianoY()   // above piano
+      || e.screenX < 0                         // left of piano
+      || e.screenX > this.layout.getWidth();   // right of piano
   }
 
   private handleTouchEnd(pointerId: number) {

@@ -102,7 +102,7 @@ describe('VisualizationController', () => {
   describe('mouse events', () => {
     it('should handle mouse down in piano roll section', () => {
       const mousedownHandler = getEventHandler('mousedown');
-      const event = new MouseEvent('mousedown', { clientX: 100, clientY: 300 });
+      const event = createMouseEventWithOffset('mousedown', { clientX: 100, clientY: 300 });
       
       mousedownHandler(event);
       
@@ -112,7 +112,7 @@ describe('VisualizationController', () => {
     it('should ignore mouse down in piano section', () => {
       (layout.getSection as any).mockReturnValue(Section.PIANO);
       const mousedownHandler = getEventHandler('mousedown');
-      const event = new MouseEvent('mousedown', { clientX: 100, clientY: 600 });
+      const event = createMouseEventWithOffset('mousedown', { clientX: 100, clientY: 600 });
       
       mousedownHandler(event);
       
@@ -124,10 +124,10 @@ describe('VisualizationController', () => {
       const mousemoveHandler = getEventHandler('mousemove');
       
       // Mouse down
-      mousedownHandler(new MouseEvent('mousedown', { clientX: 100, clientY: 300 }));
+      mousedownHandler(createMouseEventWithOffset('mousedown', { clientX: 100, clientY: 300 }));
       
       // Mouse move
-      mousemoveHandler(new MouseEvent('mousemove', { clientX: 150, clientY: 300 }));
+      mousemoveHandler(createMouseEventWithOffset('mousemove', { clientX: 150, clientY: 300 }));
       
       expect(Cursor.set).toHaveBeenCalledWith(CursorType.GRABBING);
       expect(onContainerXChange).toHaveBeenCalledWith(50); // Delta of 50
@@ -138,7 +138,7 @@ describe('VisualizationController', () => {
       const mousedownHandler = getEventHandler('mousedown');
       const mouseupHandler = getEventHandler('mouseup');
       
-      mousedownHandler(new MouseEvent('mousedown', { clientX: 100, clientY: 300 }));
+      mousedownHandler(createMouseEventWithOffset('mousedown', { clientX: 100, clientY: 300 }));
       mouseupHandler(new MouseEvent('mouseup'));
       
       expect(onContainerTargetXChange).toHaveBeenCalled();
@@ -147,7 +147,7 @@ describe('VisualizationController', () => {
     it('should set grab cursor on hover over piano roll', () => {
       const mousemoveHandler = getEventHandler('mousemove');
       
-      mousemoveHandler(new MouseEvent('mousemove', { clientX: 100, clientY: 300 }));
+      mousemoveHandler(createMouseEventWithOffset('mousemove', { clientX: 100, clientY: 300 }));
       
       expect(Cursor.set).toHaveBeenCalledWith(CursorType.GRAB);
     });
@@ -331,10 +331,10 @@ describe('VisualizationController', () => {
       (layout.getClampedX as any).mockImplementation((x: number) => x); // Pass through
       
       // Start gesture at initial position
-      mousedownHandler(new MouseEvent('mousedown', { clientX: 100, clientY: 300 }));
+      mousedownHandler(createMouseEventWithOffset('mousedown', { clientX: 100, clientY: 300 }));
       
       // Move to create a delta of 57 pixels (100 -> 157)
-      mousemoveHandler(new MouseEvent('mousemove', { clientX: 157, clientY: 300 }));
+      mousemoveHandler(createMouseEventWithOffset('mousemove', { clientX: 157, clientY: 300 }));
       
       // Mock that layout now reports the moved position and quantization
       (layout.getX as any).mockReturnValue(57); // Moved position
@@ -395,6 +395,13 @@ describe('VisualizationController', () => {
       call => call[0] === eventType
     );
     return call?.[1] as Function;
+  }
+
+  function createMouseEventWithOffset(type: string, init: MouseEventInit): MouseEvent {
+    const event = new MouseEvent(type, init);
+    Object.defineProperty(event, 'offsetX', { value: init.clientX ?? 0 });
+    Object.defineProperty(event, 'offsetY', { value: init.clientY ?? 0 });
+    return event;
   }
 
   function createTouchEvent(

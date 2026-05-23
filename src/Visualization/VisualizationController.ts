@@ -96,7 +96,7 @@ export default class VisualizationController {
 
   private onMouseDown(e: MouseEvent) {
     const { layout } = this.options;
-    const section = layout.getSection(e.clientY);
+    const section = layout.getSection(e.offsetY);
     if (section === Section.PIANO) {
       return;
     }
@@ -107,7 +107,7 @@ export default class VisualizationController {
         clientX: e.clientX,
         clientY: e.clientY,
         containerX: layout.getX(),
-        section: layout.getSection(e.clientY),
+        section,
         pianoHeight: layout.getPianoHeight(),
       },
     };
@@ -120,7 +120,7 @@ export default class VisualizationController {
   private onMouseMove(e: MouseEvent) {
     const { layout } = this.options;
     if (!this.mouseContext.isDown) {
-      const section = layout.getSection(e.clientY);
+      const section = layout.getSection(e.offsetY);
       if (section === Section.PIANO_ROLL) {
         Cursor.set(CursorType.GRAB);
       }
@@ -194,9 +194,10 @@ export default class VisualizationController {
   }
 
   private shouldPreventDefault(touches: TouchList): boolean {
-    const { layout } = this.options;
+    const { layout, canvas } = this.options;
+    const canvasTop = canvas.getBoundingClientRect().top;
     for (let i = 0; i < touches.length; i++) {
-      if (layout.getSection(touches[i].clientY) !== Section.PIANO_ROLL) {
+      if (layout.getSection(touches[i].clientY - canvasTop) !== Section.PIANO_ROLL) {
         return false;
       }
     }
@@ -266,9 +267,10 @@ export default class VisualizationController {
   }
 
   private onGestureStart(e: any) {
-    const { layout } = this.options;
+    const { layout, canvas } = this.options;
+    const canvasTop = canvas.getBoundingClientRect().top;
 
-    if (layout.getSection(e.clientY || 0) === Section.PIANO) {
+    if (layout.getSection((e.clientY || 0) - canvasTop) === Section.PIANO) {
       return;
     }
 
@@ -316,7 +318,7 @@ export default class VisualizationController {
     }
     
     if (e.deltaY !== 0) {
-      const section = layout.getSection(e.clientY);
+      const section = layout.getSection(e.offsetY);
       if (section === Section.PIANO_ROLL) {
         const widthFactorDelta = e.deltaY * 0.001;
         const currentWidthFactor = layout.getWidthFactor();

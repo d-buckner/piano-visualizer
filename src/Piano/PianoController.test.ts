@@ -109,7 +109,7 @@ describe('PianoController', () => {
       mousedownHandler();
 
       // Move mouse above piano
-      globalMouseMoveHandler({ clientY: pianoY - 10 });
+      globalMouseMoveHandler({ screenY: pianoY - 10 });
 
       expect(onKeyUp).toHaveBeenCalledWith(keyIndex + 21);
     });
@@ -119,7 +119,7 @@ describe('PianoController', () => {
         (call: any) => call[0] === 'globalmousemove'
       )[1];
 
-      globalMouseMoveHandler({ clientY: pianoY + 10 });
+      globalMouseMoveHandler({ screenY: pianoY + 10 });
 
       expect(Cursor.set).toHaveBeenCalledWith(CursorType.POINTER);
     });
@@ -204,7 +204,7 @@ describe('PianoController', () => {
       const globalTouchMoveHandler = (graphics[0].on as any).mock.calls.find(
         (call: any) => call[0] === 'globaltouchmove'
       )[1];
-      globalTouchMoveHandler({ pointerId, clientY: pianoY - 10 });
+      globalTouchMoveHandler({ pointerId, screenY: pianoY - 10 });
 
       expect(onKeyUp).toHaveBeenCalledWith(keyIndex + 21);
     });
@@ -223,7 +223,7 @@ describe('PianoController', () => {
       const globalTouchMoveHandler = (graphics[0].on as any).mock.calls.find(
         (call: any) => call[0] === 'globaltouchmove'
       )[1];
-      globalTouchMoveHandler({ pointerId, clientY: containerHeight + 10 });
+      globalTouchMoveHandler({ pointerId, screenY: containerHeight + 10 });
 
       expect(onKeyUp).toHaveBeenCalledWith(keyIndex + 21);
     });
@@ -309,7 +309,7 @@ describe('PianoController', () => {
       )[1];
 
       mousedownHandler();
-      globalMouseMoveHandler({ clientX: -10, clientY: pianoY + 50 });
+      globalMouseMoveHandler({ screenX: -10, screenY: pianoY + 50 });
 
       expect(onKeyUp).toHaveBeenCalledWith(keyIndex + 21);
     });
@@ -324,7 +324,7 @@ describe('PianoController', () => {
       )[1];
 
       mousedownHandler();
-      globalMouseMoveHandler({ clientX: containerWidth + 10, clientY: pianoY + 50 });
+      globalMouseMoveHandler({ screenX: containerWidth + 10, screenY: pianoY + 50 });
 
       expect(onKeyUp).toHaveBeenCalledWith(keyIndex + 21);
     });
@@ -339,7 +339,7 @@ describe('PianoController', () => {
       )[1];
 
       mousedownHandler();
-      globalMouseMoveHandler({ clientX: 600, clientY: containerHeight + 10 });
+      globalMouseMoveHandler({ screenX: 600, screenY: containerHeight + 10 });
 
       expect(onKeyUp).toHaveBeenCalledWith(keyIndex + 21);
     });
@@ -355,7 +355,7 @@ describe('PianoController', () => {
       )[1];
 
       touchStartHandler({ preventDefault: vi.fn(), pointerId });
-      globalTouchMoveHandler({ pointerId, clientX: -10, clientY: pianoY + 50 });
+      globalTouchMoveHandler({ pointerId, screenX: -10, screenY: pianoY + 50 });
 
       expect(onKeyUp).toHaveBeenCalledWith(keyIndex + 21);
     });
@@ -371,7 +371,7 @@ describe('PianoController', () => {
       )[1];
 
       touchStartHandler({ preventDefault: vi.fn(), pointerId });
-      globalTouchMoveHandler({ pointerId, clientX: containerWidth + 10, clientY: pianoY + 50 });
+      globalTouchMoveHandler({ pointerId, screenX: containerWidth + 10, screenY: pianoY + 50 });
 
       expect(onKeyUp).toHaveBeenCalledWith(keyIndex + 21);
     });
