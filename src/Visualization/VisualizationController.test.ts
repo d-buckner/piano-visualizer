@@ -144,6 +144,14 @@ describe('VisualizationController', () => {
       expect(onContainerTargetXChange).toHaveBeenCalled();
     });
 
+    it('should ignore mouse up when no mouse gesture is active', () => {
+      const mouseupHandler = getEventHandler('mouseup');
+
+      mouseupHandler(new MouseEvent('mouseup'));
+
+      expect(onContainerTargetXChange).not.toHaveBeenCalled();
+    });
+
     it('should set grab cursor on hover over piano roll', () => {
       const mousemoveHandler = getEventHandler('mousemove');
       
@@ -153,11 +161,22 @@ describe('VisualizationController', () => {
     });
 
     it('should reset on mouse leave', () => {
+      const mousedownHandler = getEventHandler('mousedown');
       const mouseleaveHandler = getEventHandler('mouseleave');
+
+      mousedownHandler(createMouseEventWithOffset('mousedown', { clientX: 100, clientY: 300 }));
       
       mouseleaveHandler(new MouseEvent('mouseleave'));
       
       expect(onContainerTargetXChange).toHaveBeenCalled();
+    });
+
+    it('should ignore mouse leave when no mouse gesture is active', () => {
+      const mouseleaveHandler = getEventHandler('mouseleave');
+
+      mouseleaveHandler(new MouseEvent('mouseleave'));
+
+      expect(onContainerTargetXChange).not.toHaveBeenCalled();
     });
   });
 

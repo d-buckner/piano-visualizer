@@ -255,24 +255,37 @@ describe('Piano', () => {
   });
 
   describe('render', () => {
-    it('should create containers for natural and accidental keys', () => {
+    it('should keep key containers stable across redraws', () => {
       const initialContainerCalls = (Container as any).mock.calls.length;
+      mockContainer.addChild.mockClear();
+      mockContainer.removeChild.mockClear();
       
       piano.forceRedraw();
       piano.render();
       
-      // Should create 3 new containers: main + natural + accidental
-      expect(Container).toHaveBeenCalledTimes(initialContainerCalls + 3);
-      expect(mockContainer.addChild).toHaveBeenCalled();
-      expect(mockContainer.removeChild).toHaveBeenCalled();
+      expect(Container).toHaveBeenCalledTimes(initialContainerCalls);
+      expect(mockContainer.addChild).not.toHaveBeenCalled();
+      expect(mockContainer.removeChild).not.toHaveBeenCalled();
     });
 
     it('should create graphics for all 88 piano keys', () => {
+      mockLayout.getKeyElement.mockClear();
+
       piano.forceRedraw();
       piano.render();
       
-      // 88 keys + initial graphics array creation
       expect(Graphics).toHaveBeenCalled();
+      expect(mockLayout.getKeyElement).toHaveBeenCalledTimes(88);
+    });
+
+    it('should redraw only a dirty key after key state changes', () => {
+      mockLayout.getKeyElement.mockClear();
+
+      piano.keyDown(60, '#ff0000');
+      piano.render();
+
+      expect(mockLayout.getKeyElement).toHaveBeenCalledTimes(1);
+      expect(mockLayout.getKeyElement).toHaveBeenCalledWith(60);
     });
 
     it('should update piano Y position', () => {

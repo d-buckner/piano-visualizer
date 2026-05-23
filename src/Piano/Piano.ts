@@ -38,17 +38,23 @@ type KeyElement = {
 export default class Piano {
     private config: Config;
     private container: Container;
+    private naturalContainer: Container;
+    private accidentalContainer: Container;
     private graphics: Graphics[];
     private layout: Layout;
     private activeKeys: Map<number, ActiveKey[]> = new Map();
     private gradientCache: Map<string, FillGradient> = new Map();
+    private dirtyKeys: Set<number> = new Set();
     private needsRedraw = true; // Initial render needed
 
     constructor(config: Config) {
         this.config = config;
         this.container = new Container();
+        this.naturalContainer = new Container();
+        this.accidentalContainer = new Container();
         this.layout = config.layout;
         this.graphics = Array.from({ length: MIDI_RANGE.TOTAL_KEYS }, () => new Graphics());
+        this.initializeKeyContainers();
         new PianoController({
             graphics: this.graphics,
             onKeyDown: this.config.onKeyDown,
@@ -71,7 +77,7 @@ export default class Piano {
             identifier,
         });
         
-        this.needsRedraw = true;
+        this.markKeyDirty(midi);
     }
 
     public keyUp(midi: number, identifier?: string) {
@@ -85,7 +91,7 @@ export default class Piano {
             if (existingEntries.length === 0) {
                 this.activeKeys.delete(midi);
             }
-            this.needsRedraw = true;
+            this.markKeyDirty(midi);
             return;
         }
 
@@ -98,34 +104,22 @@ export default class Piano {
         if (existingEntries.length === 0) {
             this.activeKeys.delete(midi);
         }
-        this.needsRedraw = true;
+        this.markKeyDirty(midi);
     }
 
     public render() {
-        if (!this.needsRedraw) {
+        if (!this.needsRedraw && this.dirtyKeys.size === 0) {
             return;
         }
 
-        const prevKeyContainer = this.container;
-
-        this.container = new Container();
-        const naturalContainer = new Container();
-        const accidentalContainer = new Container();
-
-        for (let key = 0; key < MIDI_RANGE.TOTAL_KEYS; key++) {
-            const pitch = new Pitch(key + 21);
-            const keyGraphic = this.createKeyGraphic(pitch);
-            this.graphics[key] = keyGraphic;
-            const targetContainer = pitch.isNatural
-                ? naturalContainer
-                : accidentalContainer;
-            targetContainer.addChild(keyGraphic);
+        if (this.needsRedraw) {
+            this.markAllKeysDirty();
         }
 
-        this.container.addChild(naturalContainer);
-        this.container.addChild(accidentalContainer);
-        this.config.container.removeChild(prevKeyContainer);
-        this.config.container.addChild(this.container);
+        this.dirtyKeys.forEach((midi) => {
+            this.createKeyGraphic(new Pitch(midi));
+        });
+        this.dirtyKeys.clear();
 
         const pianoY = this.layout.getPianoY();
         this.container.y = pianoY;
@@ -135,6 +129,33 @@ export default class Piano {
 
     public forceRedraw() {
         this.needsRedraw = true;
+    }
+
+    private initializeKeyContainers(): void {
+        for (let key = 0; key < MIDI_RANGE.TOTAL_KEYS; key++) {
+            const midi = key + MIDI_RANGE.MIN;
+            const pitch = new Pitch(midi);
+            const targetContainer = pitch.isNatural
+                ? this.naturalContainer
+                : this.accidentalContainer;
+
+            targetContainer.addChild(this.graphics[key]);
+            this.dirtyKeys.add(midi);
+        }
+
+        this.container.addChild(this.naturalContainer);
+        this.container.addChild(this.accidentalContainer);
+        this.config.container.addChild(this.container);
+    }
+
+    private markAllKeysDirty(): void {
+        for (let midi = MIDI_RANGE.MIN; midi <= MIDI_RANGE.MAX; midi++) {
+            this.dirtyKeys.add(midi);
+        }
+    }
+
+    private markKeyDirty(midi: number): void {
+        this.dirtyKeys.add(midi);
     }
 
     private isValidMidi(midi: number): boolean {

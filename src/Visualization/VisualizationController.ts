@@ -114,6 +114,10 @@ export default class VisualizationController {
   }
 
   private onMouseUp() {
+    if (!this.mouseContext.isDown) {
+      return;
+    }
+
     this.resetMouseContext();
   }
 
@@ -356,6 +360,10 @@ export default class VisualizationController {
   }
 
   private onMouseLeave() {
+    if (!this.mouseContext.isDown) {
+      return;
+    }
+
     this.resetMouseContext();
   }
 

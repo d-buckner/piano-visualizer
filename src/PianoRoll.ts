@@ -26,15 +26,12 @@ type Block = {
   color: string;
   identifier?: string;
   lastX?: number;
-  lastY?: number;
   lastWidth?: number;
   lastHeight?: number;
   needsRedraw?: boolean;
 };
 
 type GraphicsOptions = {
-  x: number;
-  y: number;
   width: number;
   height: number;
   color: string;
@@ -59,9 +56,9 @@ export default class PianoRoll {
   public startNote(midi: number, color: string, identifier?: string) {
     const element = this.config.layout.getRollElement(midi);
     const graphics = this.graphicsPool.get();
+    graphics.x = element.x;
+    graphics.y = this.config.layout.getPianoRollHeight();
     this.updateGraphics({
-      x: element.x,
-      y: 0,
       width: element.width,
       height: 0,
       color,
@@ -80,6 +77,9 @@ export default class PianoRoll {
       midi,
       color,
       identifier,
+      lastX: element.x,
+      lastWidth: element.width,
+      lastHeight: 0,
       needsRedraw: true,
     });
     this.container.addChild(graphics);
@@ -131,25 +131,21 @@ export default class PianoRoll {
     const blockDeletionBuffer: number[] = [];
 
     blocks.forEach((block) => {
-      const element = this.config.layout.getRollElement(block.midi);
       const pianoRollHeight = this.config.layout.getPianoRollHeight();
       
       block.y -= distance;
 
       if (block.isActive) {
         block.height += distance;
-        const x = element.x;
-        const y = block.y + pianoRollHeight;
-        const width = element.width;
+        const { x, width } = this.getBlockLayout(block);
         const height = block.height;
+        const y = block.y + pianoRollHeight;
         
-        // Only redraw if position or size changed significantly
-        if (this.hasBlockChanged(block, x, y, width, height)) {
-          
-          block.graphics.clear();
+        this.updateBlockPosition(block, x, y);
+
+        // Only redraw if geometry changed significantly
+        if (this.hasBlockGeometryChanged(block, x, width, height)) {
           this.updateGraphics({
-            x,
-            y,
             width,
             height,
             color: block.color,
@@ -157,7 +153,6 @@ export default class PianoRoll {
           });
           
           block.lastX = x;
-          block.lastY = y;
           block.lastWidth = width;
           block.lastHeight = height;
           block.needsRedraw = false;
@@ -172,18 +167,14 @@ export default class PianoRoll {
         return;
       }
 
-      const x = element.x;
+      const { x, width } = this.getBlockLayout(block);
       const y = block.y + pianoRollHeight;
-      const width = element.width;
       const height = Math.max(block.height, MIN_BLOCK_HEIGHT);
+      this.updateBlockPosition(block, x, y);
       
-      // Only redraw if position or size changed significantly
-      if (this.hasBlockChanged(block, x, y, width, height)) {
-        
-        block.graphics.clear();
+      // Only redraw if geometry changed significantly
+      if (this.hasBlockGeometryChanged(block, x, width, height)) {
         this.updateGraphics({
-          x,
-          y,
           width,
           height,
           color: block.color,
@@ -191,7 +182,6 @@ export default class PianoRoll {
         });
         
         block.lastX = x;
-        block.lastY = y;
         block.lastWidth = width;
         block.lastHeight = height;
         block.needsRedraw = false;
@@ -214,18 +204,34 @@ export default class PianoRoll {
     }
   }
 
-  private hasBlockChanged(block: Block, x: number, y: number, width: number, height: number): boolean {
+  private getBlockLayout(block: Block): { x: number; width: number } {
+    if (!block.needsRedraw && block.lastX !== undefined && block.lastWidth !== undefined) {
+      return {
+        x: block.lastX,
+        width: block.lastWidth,
+      };
+    }
+
+    return this.config.layout.getRollElement(block.midi);
+  }
+
+  private updateBlockPosition(block: Block, x: number, y: number): void {
+    block.graphics.x = x;
+    block.graphics.y = y;
+  }
+
+  private hasBlockGeometryChanged(block: Block, x: number, width: number, height: number): boolean {
     return block.needsRedraw || 
            Math.abs((block.lastX ?? 0) - x) >= PARTIAL_PIXEL_SIZE ||
-           Math.abs((block.lastY ?? 0) - y) >= PARTIAL_PIXEL_SIZE ||
            Math.abs((block.lastWidth ?? 0) - width) >= PARTIAL_PIXEL_SIZE ||
            Math.abs((block.lastHeight ?? 0) - height) >= PARTIAL_PIXEL_SIZE;
   }
 
   private updateGraphics(options: GraphicsOptions) {
-    const { graphics, x, y, width, height, color } = options;
+    const { graphics, width, height, color } = options;
     return (graphics ?? new Graphics())
-      .roundRect(x, y, width, height, RADIUS)
+      .clear()
+      .roundRect(0, 0, width, height, RADIUS)
       .fill(color)
       .stroke({
         width: 2,
