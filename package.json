@@ -14,9 +14,11 @@
     "build": "vite build",
     "build:demo": "vite build --mode development",
     "test": "vitest",
+    "test:acceptance": "playwright test",
     "release": "npm run build && npm publish"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@rollup/plugin-terser": "^0.4.4",
     "happy-dom": "^18.0.1",
     "rollup-plugin-terser": "^7.0.2",

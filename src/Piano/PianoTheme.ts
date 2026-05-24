@@ -1,8 +1,8 @@
 export const PianoTheme = {
     natural: {
-        shadow: '#d0d0d0',
-        defaultBase: '#f8f8f8',
-        border: '#000000',
+        shadow: '#9ca3af',
+        defaultBase: '#eceff3',
+        border: '#111827',
     },
     accidental: {
         deepShadow: '#0a0a0a',

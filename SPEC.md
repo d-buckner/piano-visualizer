@@ -1,10 +1,12 @@
 # Piano Visualizer — Visual Polish Spec
 
-Reference mock: `mock1.png` in repository root.
+Reference mock: `mock-2.png` in repository root.
 
 ## Overview
 
-Three rendering changes to bring the visualizer's atmosphere in line with the reference mock. All changes are internal to this package — no public API changes.
+Rendering changes to bring the visualizer's atmosphere in line with the
+reference mock. All changes are internal to this package — no public API
+changes.
 
 ## 1. Note glow and fade-out
 
@@ -57,16 +59,86 @@ Replace the current dark border with a **color-matched darkened border**:
 - `src/PianoRoll.ts` — update `updateGraphics` to derive stroke color from fill color.
 - Consider extracting `lightenColor` from `Piano.ts` into a shared utility in `src/lib/` since both `PianoRoll` and `Piano` will use it.
 
-## 3. Background ambient particles
+## 3. Active key color response
+
+**Current:** Active piano keys are tinted with the player color, but the pressed
+key can still look disconnected from the note column if the key material does
+not pick up the same color.
+
+**Target:** Pressed keys read as colored piano material under the falling note,
+without a separate flashing light bar or upward color spill at the
+piano-roll/keyboard boundary. The note block and its short trail provide the
+motion; the key itself provides a contained color response.
+
+### Approach
+
+- Tint the active key surface with the active note color while preserving the
+  natural/accidental key material gradients and outlines.
+- Active natural keys should use a vertical color wash within the key face, not
+  a separate boundary glow that flashes on/off.
+- Do not render an upward color spill from the key into the piano roll.
+- Do not render a bright horizontal strike-line bloom at the key top edge.
+- Use the active key's current top color when multiple users press the same key.
+- Keep the color response subtle enough that adjacent key outlines remain
+  readable.
+
+### Constraints
+
+- Active-key tinting must follow the same lifecycle as `Piano.keyDown` /
+  `Piano.keyUp`.
+- Active-key rendering must not change the public `Visualization` constructor
+  config.
+- Alpha should be capped to avoid making sustained notes wash out the keyboard.
+
+### Files
+
+- `src/Piano/Piano.ts` — owns active key material tinting.
+- `src/Layout.ts` — use existing key and roll geometry; do not introduce a new
+  layout contract unless required.
+
+## 4. Vertical note trails and light columns
+
+**Current:** Note blocks exist as isolated rounded rectangles.
+
+**Target:** Notes leave faint, translucent vertical columns behind them, giving
+the scene depth without turning the roll into a solid colored band.
+
+### Approach
+
+- Render a low-alpha vertical trail for active and recently released notes,
+  aligned to the same x/width as the note block.
+- The trail should be much dimmer than the crisp block and use the note color.
+- Trails fade with vertical position and should be strongest near active note
+  blocks and the keyboard strike point.
+
+### Constraints
+
+- Trail graphics must render below crisp note blocks and above ambient
+  particles.
+- Trails must share note lifecycle cleanup with their parent blocks.
+- Trails are visual only; they must not add note state or public API surface.
+
+### Files
+
+- `src/PianoRoll.ts` — add trail graphics/layer alongside note and glow
+  graphics.
+- `src/lib/GraphicsPool.ts` — pool trail graphics if a separate graphics object
+  is used per note.
+
+## 5. Background ambient particles
 
 **Current:** The background behind the piano roll is a flat solid color (passed in by the host app, typically `#18181b`). There is no depth or atmosphere.
 
-**Target:** Subtle, sparse dots of light scattered across the piano roll area, slowly drifting to give depth.
+**Target:** Subtle, sparse dots of light scattered across the piano roll area,
+slowly drifting to give depth. Particles should pick up nearby note/player color
+when useful instead of reading as only white static.
 
 ### Approach
 
 Add a `BackgroundParticles` class:
-- On init, seed ~60–100 small circles (radius 1–2px, white, alpha 0.05–0.20) at random positions within the piano roll bounds.
+- On init, seed ~60–100 small circles (radius 1–2px, white or low-saturation
+  player-tinted, alpha 0.05–0.20) at random positions within the piano roll
+  bounds.
 - Each particle drifts upward at a very slow constant speed (0.02–0.05 px/frame). When a particle exits the top, it wraps to the bottom with a new random x.
 - Render into a dedicated `Container` placed behind the piano roll container but above the app background.
 - Use a single `Graphics` object redrawn each frame (cheap for <100 circles) or a `ParticleContainer` if performance testing warrants it.
@@ -76,24 +148,95 @@ Add a `BackgroundParticles` class:
 - Particles must not interfere with pointer events (set `interactiveChildren = false` on the particle container).
 - Particle count and alpha should be subtle — this is ambient texture, not a focal element.
 - Respect `layout.getPianoRollHeight()` for vertical bounds so particles don't overlap the keyboard.
+- Particle color must remain low-alpha enough that it does not imply active note
+  state.
 
 ### Files
 
 - New file: `src/lib/BackgroundParticles.ts`
 - `src/Visualization/Visualization.ts` — instantiate `BackgroundParticles`, add its container to the stage, call its `render(delta)` in the ticker loop.
 
+## 6. Keyboard surface polish
+
+**Current:** The keyboard has basic depth and active-key tinting, but the mock
+has stronger material definition: glossy natural keys, beveled accidental keys,
+a dark separator at the roll boundary, and shadow below the keyboard.
+
+**Target:** The keyboard reads as a polished instrument surface under colored
+stage lighting while retaining clear individual key boundaries.
+
+### Approach
+
+- Preserve the existing natural/accidental key z-ordering.
+- Strengthen natural-key gradients just enough to show a glossy top highlight
+  and bottom depth.
+- Preserve black-key bevels and make their shadows visible against active color
+  washes.
+- Avoid a visible top separator over active columns; active note bars should
+  visually meet the top of the pressed key with no dark gap.
+- Add a bottom keyboard shadow/glow so the keyboard does not end abruptly.
+- Active natural keys should show a colored vertical wash down the key, not only
+  a flat color replacement.
+
+### Constraints
+
+- Key outlines must remain readable at full 88-key width.
+- Active color treatment must work for both natural and accidental keys.
+- Keyboard rendering remains owned by `Piano`; no plugin or host code should
+  draw individual piano keys.
+
+### Files
+
+- `src/Piano/Piano.ts` — key gradients, bevels, active tint treatment.
+- `src/Piano/PianoTheme.ts` — shared keyboard colors and shadow tokens.
+
+## 7. Visual composition and sizing
+
+**Current:** The spec describes individual effects, but not the overall scene
+composition seen in the mock.
+
+**Target:** The visualizer should feel full-bleed and cinematic: a dark
+vignetted piano roll above a wide, grounded keyboard, with no decorative frame
+around the core visualization.
+
+### Approach
+
+- Keep the piano roll background dark with a subtle vignette/depth gradient.
+- Preserve enough roll height for falling notes and trails to breathe.
+- Keep the keyboard visually anchored near the bottom, occupying a consistent
+  proportion of the container.
+- Use the existing `Layout` geometry as the source of truth for note/key
+  alignment.
+
+### Constraints
+
+- Effects must respect resize and `forceRedraw` flows.
+- No visual layer may overlap host toolbar/header UI; that remains outside this
+  package.
+- Do not add a new public sizing API unless implementation proves the existing
+  layout contract cannot express the mock.
+
+### Files
+
+- `src/Layout.ts` — existing sizing and alignment rules.
+- `src/Visualization/Visualization.ts` — stage-level background, layer order,
+  and resize orchestration.
+
 ## Render layer order (bottom to top)
 
 ```
 1. App background color
-2. BackgroundParticles container
-3. PianoRoll glow container (blurred)
-4. PianoRoll note container (crisp)
-5. Piano keyboard container
+2. Scene vignette/depth gradient
+3. BackgroundParticles container
+4. PianoRoll trail/light-column container
+5. PianoRoll glow container (blurred)
+6. PianoRoll note container (crisp)
+7. Active key upward spill, where z-ordering requires it behind notes
+8. Piano keyboard container
+9. Contained active key material tint
 ```
 
 ## Out of scope
 
 - Toolbar/header UI changes (handled in the parent app).
-- Active key glow spill (upward color bleed from pressed keys) — deferred to a follow-up.
 - Any public API additions or changes to `Visualization`'s constructor config.

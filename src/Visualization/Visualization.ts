@@ -8,6 +8,8 @@ import {
   type ColorSource,
   Application,
   Container,
+  FillGradient,
+  Graphics,
 } from 'pixi.js';
 import Layout from '../Layout';
 import Piano from '../Piano';
@@ -16,6 +18,7 @@ import VisualizationController from './VisualizationController';
 import applyStyle from '../lib/applyStyle';
 import Cursor from '../lib/Cursor';
 import GestureAnimator from '../lib/GestureAnimator';
+import BackgroundParticles from '../lib/BackgroundParticles';
 
 const VIZ_CONFIG = {
   DEFAULT_COLOR: '#5dadec',
@@ -38,6 +41,10 @@ type Range = {
   visibleKeys: number;
 };
 
+type PerfProbe = {
+  frameWorkMs?: number[];
+};
+
 export default class Visualization {
   private app: Application;
   private config: Config;
@@ -46,6 +53,8 @@ export default class Visualization {
   private layout: Layout;
   private htmlContainer: HTMLDivElement;
   private renderContainer: Container;
+  private sceneBackdrop: Graphics;
+  private backgroundParticles: BackgroundParticles;
   private resizeObserver: ResizeObserver;
   private gestureAnimator: GestureAnimator;
   private controller: VisualizationController | null = null;
@@ -57,12 +66,20 @@ export default class Visualization {
     Cursor.init(this.htmlContainer);
     this.app.resizeTo = config.container;
     this.renderContainer = new Container();
+    this.sceneBackdrop = new Graphics();
     this.layout = new Layout({
       width: config.container.clientWidth,
       height: config.container.clientHeight,
       pianoHeight: VIZ_CONFIG.DEFAULT_PIANO_HEIGHT,
     });
 
+    this.backgroundParticles = new BackgroundParticles({
+      layout: this.layout,
+    });
+    this.pianoRoll = new PianoRoll({
+      container: this.renderContainer,
+      layout: this.layout,
+    });
     this.piano = new Piano({
       container: this.renderContainer,
       layout: this.layout,
@@ -75,11 +92,9 @@ export default class Visualization {
         this.endNote(midi);
       },
     });
-    this.pianoRoll = new PianoRoll({
-      container: this.renderContainer,
-      layout: this.layout,
-    });
 
+    this.app.stage.addChild(this.sceneBackdrop);
+    this.app.stage.addChild(this.backgroundParticles.container);
     this.app.stage.addChild(this.renderContainer);
     
     this.gestureAnimator = new GestureAnimator({
@@ -102,6 +117,7 @@ export default class Visualization {
       // Force redraw since layout changed
       this.pianoRoll.forceRedraw();
       this.piano.forceRedraw();
+      this.drawSceneBackdrop();
       
       // Immediately sync container position to prevent key shifting during resize
       const newX = this.layout.getX();
@@ -176,7 +192,40 @@ export default class Visualization {
     this.controller = null;
     this.resizeObserver.disconnect();
     this.pianoRoll.destroy();
+    this.backgroundParticles.destroy();
     this.app.destroy();
+  }
+
+  private drawSceneBackdrop(): void {
+    const width = this.layout.getWidth();
+    const height = this.layout.getHeight();
+    const pianoY = this.layout.getPianoY();
+    const gradient = new FillGradient(0, 0, 0, height);
+    gradient.addColorStop(0, '#02040b');
+    gradient.addColorStop(0.62, '#070911');
+    gradient.addColorStop(1, '#010101');
+    gradient.buildLinearGradient();
+
+    this.sceneBackdrop.clear();
+    this.sceneBackdrop.rect(0, 0, width, height).fill(gradient);
+    this.sceneBackdrop.rect(0, 0, width, Math.max(1, pianoY * 0.35)).fill({
+      color: '#000000',
+      alpha: 0.28,
+    });
+
+    const edgeWidth = Math.max(80, width * 0.16);
+    this.sceneBackdrop.rect(0, 0, edgeWidth, height).fill({
+      color: '#000000',
+      alpha: 0.32,
+    });
+    this.sceneBackdrop.rect(width - edgeWidth, 0, edgeWidth, height).fill({
+      color: '#000000',
+      alpha: 0.32,
+    });
+    this.sceneBackdrop.rect(0, pianoY - 5, width, 8).fill({
+      color: '#111827',
+      alpha: 0.7,
+    });
   }
 
   private async init() {
@@ -191,6 +240,7 @@ export default class Visualization {
     }
 
     await this.app.init(options);
+    this.drawSceneBackdrop();
 
     this.controller = new VisualizationController({
       canvas: this.app.canvas,
@@ -215,9 +265,13 @@ export default class Visualization {
     container.append(this.htmlContainer);
 
     this.app.ticker.add((delta) => {
+      const frameStart = performance.now();
+      this.backgroundParticles.render(delta);
       this.piano.render();
       this.pianoRoll.render(delta);
       this.gestureAnimator.animate(delta);
+      (globalThis as { __pianoVisualizerPerf?: PerfProbe }).__pianoVisualizerPerf
+        ?.frameWorkMs?.push(performance.now() - frameStart);
     });
   }
 }

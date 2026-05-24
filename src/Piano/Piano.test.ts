@@ -7,12 +7,16 @@ vi.mock('pixi.js', () => ({
     addChild: vi.fn(),
     removeChild: vi.fn(),
     y: 0,
+    filters: [],
   })),
   Graphics: vi.fn().mockImplementation(() => ({
     clear: vi.fn().mockReturnThis(),
+    rect: vi.fn().mockReturnThis(),
     roundRect: vi.fn().mockReturnThis(),
+    circle: vi.fn().mockReturnThis(),
     fill: vi.fn().mockReturnThis(),
     stroke: vi.fn().mockReturnThis(),
+    destroy: vi.fn(),
   })),
   FillGradient: vi.fn().mockImplementation(() => ({
     addColorStop: vi.fn(),
@@ -32,7 +36,7 @@ vi.mock('./PianoController');
 vi.mock('../Layout');
 
 // Gradient color stop positions for base colors
-const NATURAL_KEY_BASE_COLOR_STOP = 0.4;
+const NATURAL_KEY_BASE_COLOR_STOP = 0.38;
 const ACCIDENTAL_KEY_BASE_COLOR_STOP = 1;
 
 describe('Piano', () => {
@@ -43,6 +47,22 @@ describe('Piano', () => {
   let onKeyUp: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    vi.clearAllMocks();
+    (Graphics as any).mockImplementation(() => ({
+      clear: vi.fn().mockReturnThis(),
+      rect: vi.fn().mockReturnThis(),
+      roundRect: vi.fn().mockReturnThis(),
+      circle: vi.fn().mockReturnThis(),
+      fill: vi.fn().mockReturnThis(),
+      stroke: vi.fn().mockReturnThis(),
+      destroy: vi.fn(),
+    }));
+    (FillGradient as any).mockImplementation(() => ({
+      addColorStop: vi.fn(),
+      buildLinearGradient: vi.fn(),
+      texture: null,
+    }));
+
     onKeyDown = vi.fn();
     onKeyUp = vi.fn();
     
@@ -53,6 +73,8 @@ describe('Piano', () => {
 
     mockLayout = {
       getPianoY: vi.fn().mockReturnValue(500),
+      getPianoHeight: vi.fn().mockReturnValue(250),
+      getPianoRollHeight: vi.fn().mockReturnValue(500),
       getKeyElement: vi.fn().mockImplementation((midi) => ({
         x: (midi - 21) * 20,
         width: 18,
@@ -170,8 +192,11 @@ describe('Piano', () => {
       (Graphics as any).mockImplementation(() => ({
         fill: fillSpy,
         clear: vi.fn().mockReturnThis(),
+        rect: vi.fn().mockReturnThis(),
         roundRect: vi.fn().mockReturnThis(),
+        circle: vi.fn().mockReturnThis(),
         stroke: vi.fn().mockReturnThis(),
+        destroy: vi.fn(),
       }));
       
       piano.keyDown(60, '#ff0000', 'first');
@@ -198,8 +223,11 @@ describe('Piano', () => {
       (Graphics as any).mockImplementation(() => ({
         fill: fillSpy,
         clear: vi.fn().mockReturnThis(),
+        rect: vi.fn().mockReturnThis(),
         roundRect: vi.fn().mockReturnThis(),
+        circle: vi.fn().mockReturnThis(),
         stroke: vi.fn().mockReturnThis(),
+        destroy: vi.fn(),
       }));
       
       piano.keyDown(60, '#ff0000', 'first');
@@ -229,8 +257,11 @@ describe('Piano', () => {
       (Graphics as any).mockImplementation(() => ({
         fill: fillSpy,
         clear: vi.fn().mockReturnThis(),
+        rect: vi.fn().mockReturnThis(),
         roundRect: vi.fn().mockReturnThis(),
+        circle: vi.fn().mockReturnThis(),
         stroke: vi.fn().mockReturnThis(),
+        destroy: vi.fn(),
       }));
       
       piano.keyDown(61, '#ff0000', 'first');   // C# - accidental key
@@ -275,7 +306,7 @@ describe('Piano', () => {
       piano.render();
       
       expect(Graphics).toHaveBeenCalled();
-      expect(mockLayout.getKeyElement).toHaveBeenCalledTimes(88);
+      expect(mockLayout.getKeyElement).toHaveBeenCalledTimes(90);
     });
 
     it('should redraw only a dirty key after key state changes', () => {
@@ -284,7 +315,7 @@ describe('Piano', () => {
       piano.keyDown(60, '#ff0000');
       piano.render();
 
-      expect(mockLayout.getKeyElement).toHaveBeenCalledTimes(1);
+      expect(mockLayout.getKeyElement).toHaveBeenCalledTimes(3);
       expect(mockLayout.getKeyElement).toHaveBeenCalledWith(60);
     });
 
@@ -363,6 +394,56 @@ describe('Piano', () => {
       
       const graphics = piano['graphics'][39];
       expect(graphics.clear).toHaveBeenCalled();
+    });
+
+    it('should scale natural key radius down for narrow compressed keys', () => {
+      mockLayout.getKeyElement.mockReturnValue({
+        x: 0,
+        width: 12,
+        height: 40,
+      });
+
+      piano.forceRedraw();
+      piano.render();
+
+      const graphics = piano['graphics'][39]; // C4 is key 39
+      const bodyCalls = graphics.roundRect.mock.calls.filter(
+        ([, y, width, height]) => y === 0 && width === 12 && height === 40,
+      );
+
+      expect(bodyCalls[0][4]).toBeCloseTo(1.44);
+    });
+
+    it('should scale accidental key radius down for shallow keys', () => {
+      mockLayout.getKeyElement.mockReturnValue({
+        x: 0,
+        width: 10,
+        height: 30,
+      });
+
+      piano.forceRedraw();
+      piano.render();
+
+      const graphics = piano['graphics'][40]; // C#4 is key 40
+      const bodyCalls = graphics.roundRect.mock.calls.filter(
+        ([, y, width, height]) => y === 0 && width === 10 && height === 30,
+      );
+
+      expect(bodyCalls[0][4]).toBeCloseTo(1.35);
+    });
+
+    it('should scale the bottom frame height with short piano layouts', () => {
+      mockLayout.getPianoHeight.mockReturnValue(50);
+
+      piano.forceRedraw();
+      piano.render();
+
+      expect(piano['frameGraphics'].rect).toHaveBeenLastCalledWith(
+        expect.any(Number),
+        49.2,
+        expect.any(Number),
+        1.6,
+      );
     });
   });
 });

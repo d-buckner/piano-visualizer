@@ -3,16 +3,28 @@
  * uses separate containers for natural and accidental keys to handle z-ordering.
  * supports multiple colors per key and optional identifiers for complex scenarios.
  */
-import { type ColorSource, Container, Graphics, FillGradient, Color } from 'pixi.js';
+import { type ColorSource, Container, Graphics, FillGradient } from 'pixi.js';
 import Layout from '../Layout';
 import Pitch from '../Pitch';
 import PianoController from './PianoController';
 import { PianoTheme } from './PianoTheme';
+import { adjustColor } from '../lib/color';
 
 const MIDI_RANGE = {
     MIN: 21, // A0
     MAX: 108, // C8
     TOTAL_KEYS: 88
+} as const;
+
+const KEY_SHAPE = {
+    NATURAL_RADIUS: 4,
+    ACCIDENTAL_RADIUS: 3,
+    NATURAL_SHADOW_DEPTH: 3,
+    ACCIDENTAL_SHADOW_DEPTH: 5,
+    ACCIDENTAL_IDLE_MARGIN: 3,
+    ACCIDENTAL_ACTIVE_MARGIN: 2,
+    ACCIDENTAL_SURFACE_Y: 3,
+    FRAME_HEIGHT: 8,
 } as const;
 
 type Config = {
@@ -40,6 +52,7 @@ export default class Piano {
     private container: Container;
     private naturalContainer: Container;
     private accidentalContainer: Container;
+    private frameGraphics: Graphics;
     private graphics: Graphics[];
     private layout: Layout;
     private activeKeys: Map<number, ActiveKey[]> = new Map();
@@ -52,6 +65,7 @@ export default class Piano {
         this.container = new Container();
         this.naturalContainer = new Container();
         this.accidentalContainer = new Container();
+        this.frameGraphics = new Graphics();
         this.layout = config.layout;
         this.graphics = Array.from({ length: MIDI_RANGE.TOTAL_KEYS }, () => new Graphics());
         this.initializeKeyContainers();
@@ -120,6 +134,7 @@ export default class Piano {
             this.createKeyGraphic(new Pitch(midi));
         });
         this.dirtyKeys.clear();
+        this.drawKeyboardFrame();
 
         const pianoY = this.layout.getPianoY();
         this.container.y = pianoY;
@@ -145,6 +160,7 @@ export default class Piano {
 
         this.container.addChild(this.naturalContainer);
         this.container.addChild(this.accidentalContainer);
+        this.container.addChild(this.frameGraphics);
         this.config.container.addChild(this.container);
     }
 
@@ -182,8 +198,12 @@ export default class Piano {
     }
 
     private createNaturalKeyGraphic(graphic: Graphics, keyElement: KeyElement, color?: string) {
-        const radius = 4;
-        const shadowDepth = 3;
+        const radius = this.getScaledRadius(keyElement, KEY_SHAPE.NATURAL_RADIUS, 0.12, 0.04);
+        const shadowDepth = this.getScaledLength(
+            KEY_SHAPE.NATURAL_SHADOW_DEPTH,
+            keyElement.height,
+            0.03,
+        );
 
         // Bottom shadow for depth
         graphic
@@ -198,7 +218,7 @@ export default class Piano {
 
         // Main key body with gradient for realistic appearance
         const baseColor = color ?? PianoTheme.natural.defaultBase;
-        const naturalGradient = this.getOrCreateNaturalGradient(baseColor);
+        const naturalGradient = this.getOrCreateNaturalGradient(baseColor, Boolean(color));
 
         graphic
             .roundRect(keyElement.x, 0, keyElement.width, keyElement.height, radius)
@@ -213,11 +233,27 @@ export default class Piano {
     }
 
     private createAccidentalKeyGraphic(graphic: Graphics, keyElement: KeyElement, color?: string) {
-        const radius = 3;
-        const shadowDepth = 5;
-        const shadowMargin = color ? 2 : 3;
+        const radius = this.getScaledRadius(keyElement, KEY_SHAPE.ACCIDENTAL_RADIUS, 0.16, 0.045);
+        const shadowDepth = this.getScaledLength(
+            KEY_SHAPE.ACCIDENTAL_SHADOW_DEPTH,
+            keyElement.height,
+            0.04,
+        );
+        const maxShadowMargin = color
+            ? KEY_SHAPE.ACCIDENTAL_ACTIVE_MARGIN
+            : KEY_SHAPE.ACCIDENTAL_IDLE_MARGIN;
+        const shadowMargin = Math.min(
+            maxShadowMargin,
+            Math.max(0.5, keyElement.width * 0.12, keyElement.height * 0.015),
+            keyElement.width / 2,
+        );
+        const surfaceY = this.getScaledLength(
+            KEY_SHAPE.ACCIDENTAL_SURFACE_Y,
+            keyElement.height,
+            0.03,
+        );
         const surfaceHeight = color
-            ? keyElement.height - shadowMargin * 2
+            ? Math.max(0, keyElement.height - shadowMargin * 2)
             : keyElement.height * 0.9;
 
         // Deep bottom shadow for realistic depth
@@ -249,9 +285,8 @@ export default class Piano {
 
         // Glossy surface with smooth gradient
         const surfaceColor = color ?? PianoTheme.accidental.defaultSurface;
-        const surfaceWidth = keyElement.width - shadowMargin * 2;
+        const surfaceWidth = Math.max(0, keyElement.width - shadowMargin * 2);
         const surfaceX = keyElement.x + shadowMargin;
-        const surfaceY = 3;
 
         // Get cached gradient to prevent memory leaks
         const gradient = this.getOrCreateGradient(surfaceColor);
@@ -272,47 +307,46 @@ export default class Piano {
         graphic
             .roundRect(
                 keyElement.x + shadowMargin,
-                4,
+                surfaceY + 1,
                 bevelSize,
                 surfaceHeight * 0.5,
                 0,
             )
-            .fill(color ? this.lightenColor(color, 0.1) : PianoTheme.accidental.leftBevel);
+            .fill(color ? adjustColor(color, 0.1) : PianoTheme.accidental.leftBevel);
 
         // Right bevel (even more subtle)
         graphic
             .roundRect(
                 keyElement.x + keyElement.width - shadowMargin - bevelSize,
-                4,
+                surfaceY + 1,
                 bevelSize,
                 surfaceHeight * 0.5,
                 0,
             )
-            .fill(color ? this.lightenColor(color, 0.05) : PianoTheme.accidental.rightBevel);
+            .fill(color ? adjustColor(color, 0.05) : PianoTheme.accidental.rightBevel);
 
         return graphic;
     }
 
-    private lightenColor(color: string, factor: number): string {
-        // Use PixiJS Color class for proper color manipulation
-        const pixiColor = new Color(color);
-
-        if (factor >= 0) {
-            // Lighten: blend with white
-            const white = new Color(0xffffff);
-            const [r, g, b, a] = pixiColor.toArray();
-            const blendedR = r + (white.red - r) * factor;
-            const blendedG = g + (white.green - g) * factor;
-            const blendedB = b + (white.blue - b) * factor;
-
-            return new Color([blendedR, blendedG, blendedB, a]).toHex();
-        } else {
-            // Darken: blend with black
-            const [r, g, b, a] = pixiColor.toArray();
-            const darkenFactor = 1 + factor; // Convert negative factor to positive
-
-            return new Color([r * darkenFactor, g * darkenFactor, b * darkenFactor, a]).toHex();
+    private getScaledRadius(
+        keyElement: KeyElement,
+        maxRadius: number,
+        widthRatio: number,
+        heightRatio: number,
+    ): number {
+        if (keyElement.width <= 0 || keyElement.height <= 0) {
+            return 0;
         }
+
+        return Math.min(maxRadius, keyElement.width * widthRatio, keyElement.height * heightRatio);
+    }
+
+    private getScaledLength(maxLength: number, referenceLength: number, ratio: number): number {
+        if (referenceLength <= 0) {
+            return 0;
+        }
+
+        return Math.min(maxLength, referenceLength * ratio);
     }
 
     private getOrCreateGradient(baseColor: string): FillGradient {
@@ -325,8 +359,8 @@ export default class Piano {
         }
 
         // Create new gradient with proper colors
-        const topColor = this.lightenColor(baseColor, 0.12);
-        const midColor = this.lightenColor(baseColor, 0.02);
+        const topColor = adjustColor(baseColor, 0.12);
+        const midColor = adjustColor(baseColor, 0.02);
 
         const gradient = new FillGradient(0, 0, 0, 1);
         gradient.addColorStop(0, topColor);      // Light at top
@@ -339,9 +373,9 @@ export default class Piano {
         return gradient;
     }
 
-    private getOrCreateNaturalGradient(baseColor: string): FillGradient {
+    private getOrCreateNaturalGradient(baseColor: string, isActive: boolean): FillGradient {
         // Create a cache key based on the base color
-        const cacheKey = `natural-${baseColor}`;
+        const cacheKey = `natural-${baseColor}-${isActive ? 'active' : 'idle'}`;
 
         // Return existing gradient if already cached
         if (this.gradientCache.has(cacheKey)) {
@@ -349,19 +383,43 @@ export default class Piano {
         }
 
         // Create subtle gradient for natural keys (top-to-bottom)
-        const topColor = this.lightenColor(baseColor, 0.15);     // Brighter highlight at top
+        const topColor = adjustColor(baseColor, isActive ? 0.28 : 0.22);
         const midColor = baseColor;                               // Base color in middle
-        const bottomColor = this.lightenColor(baseColor, -0.05); // Slightly darker at bottom
+        const bottomColor = adjustColor(baseColor, isActive ? -0.16 : -0.18);
 
         const gradient = new FillGradient(0, 0, 0, 1);
         gradient.addColorStop(0, topColor);       // Bright highlight at top
-        gradient.addColorStop(0.4, midColor);    // Base color
+        if (isActive) {
+            gradient.addColorStop(0.08, adjustColor(baseColor, 0.45));
+        }
+        gradient.addColorStop(0.38, midColor);    // Base color
+        if (!isActive) {
+            gradient.addColorStop(0.78, adjustColor(baseColor, -0.08));
+        }
         gradient.addColorStop(1, bottomColor);   // Subtle shadow at bottom
         gradient.buildLinearGradient();
 
         // Cache the gradient for reuse
         this.gradientCache.set(cacheKey, gradient);
         return gradient;
+    }
+
+    private drawKeyboardFrame(): void {
+        const firstKey = this.layout.getKeyElement(MIDI_RANGE.MIN);
+        const lastKey = this.layout.getKeyElement(MIDI_RANGE.MAX);
+        const width = lastKey.x + lastKey.width - firstKey.x;
+        const frameHeight = this.getScaledLength(
+            KEY_SHAPE.FRAME_HEIGHT,
+            this.layout.getPianoHeight(),
+            0.032,
+        );
+        const bottomY = this.layout.getPianoHeight() - frameHeight / 2;
+
+        this.frameGraphics.clear();
+        this.frameGraphics.rect(firstKey.x, bottomY, width, frameHeight).fill({
+            color: '#05070a',
+            alpha: 0.86,
+        });
     }
 
     public destroy(): void {
@@ -372,5 +430,6 @@ export default class Piano {
             }
         });
         this.gradientCache.clear();
+        this.frameGraphics.destroy();
     }
 }
