@@ -71,6 +71,10 @@ export default class VisualizationController {
       gesturestart: this.onGestureStart,
       gesturechange: this.onGestureChange,
       gestureend: this.onGestureEnd,
+      // Defense-in-depth layer 3: catch selection/context-menu attempts that
+      // bypass touch event prevention (e.g. programmatic selection, long-press).
+      selectstart: this.onSelectStart,
+      contextmenu: this.onContextMenu,
     };
 
     this.abortController = new AbortController();
@@ -143,11 +147,16 @@ export default class VisualizationController {
   }
 
   private onTouchStart(e: TouchEvent) {
-    if (!this.shouldPreventDefault(e.touches)) {
-      return;
+    // Defense-in-depth layer 2: always preventDefault on the native TouchEvent.
+    // PixiJS calls preventDefault on the PointerEvent it synthesizes, but iOS
+    // uses the original TouchEvent to decide whether to start text selection,
+    // show the magnifier loupe, or trigger the callout menu.
+    e.preventDefault();
+
+    if (!this.isTouchInPianoRoll(e.touches)) {
+      return; // Piano key touches handled by PianoController via PixiJS
     }
 
-    e.preventDefault();
     const { layout } = this.options;
     const gestureType = this.detectTouchGesture(e);
 
@@ -197,7 +206,7 @@ export default class VisualizationController {
     });
   }
 
-  private shouldPreventDefault(touches: TouchList): boolean {
+  private isTouchInPianoRoll(touches: TouchList): boolean {
     const { layout, canvas } = this.options;
     const canvasTop = canvas.getBoundingClientRect().top;
     for (let i = 0; i < touches.length; i++) {
@@ -411,5 +420,13 @@ export default class VisualizationController {
       x: (touches[0].clientX + touches[1].clientX) / 2,
       y: (touches[0].clientY + touches[1].clientY) / 2,
     };
+  }
+
+  private onSelectStart(e: Event) {
+    e.preventDefault();
+  }
+
+  private onContextMenu(e: Event) {
+    e.preventDefault();
   }
 }

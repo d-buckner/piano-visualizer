@@ -1,7 +1,15 @@
 /**
- * input controller - handles mouse and touch events for the piano keys.
- * tries to support multi-touch and mouse dragging across keys.
- * includes some edge case handling for when the cursor leaves the piano area.
+ * Input controller — handles mouse and touch events for the piano keys.
+ * Supports multi-touch and mouse dragging across keys, with edge-case
+ * handling for when the pointer leaves the piano area.
+ *
+ * Note on iOS text-selection prevention:
+ * The preventDefault() calls here operate on PixiJS FederatedPointerEvents,
+ * which suppress the synthesized PointerEvent defaults but NOT the original
+ * native TouchEvent defaults. iOS uses the native TouchEvent to decide
+ * whether to start text selection or show the magnifier loupe.
+ * Native TouchEvent.preventDefault() is handled at the DOM level by
+ * VisualizationController.onTouchStart, which covers the entire canvas.
  */
 import { type FederatedPointerEvent, Graphics } from 'pixi.js';
 import Cursor, { CursorType } from '../lib/Cursor';
