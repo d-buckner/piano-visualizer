@@ -147,15 +147,16 @@ export default class VisualizationController {
   }
 
   private onTouchStart(e: TouchEvent) {
-    // Defense-in-depth layer 2: always preventDefault on the native TouchEvent.
-    // PixiJS calls preventDefault on the PointerEvent it synthesizes, but iOS
-    // uses the original TouchEvent to decide whether to start text selection,
-    // show the magnifier loupe, or trigger the callout menu.
-    e.preventDefault();
-
     if (!this.isTouchInPianoRoll(e.touches)) {
       return; // Piano key touches handled by PianoController via PixiJS
     }
+
+    // Defense-in-depth layer 2: preventDefault on the native TouchEvent for
+    // piano roll touches. PixiJS calls preventDefault on the PointerEvent it
+    // synthesizes, but iOS uses the original TouchEvent to decide whether to
+    // start text selection, show the magnifier loupe, or trigger the callout
+    // menu. Piano touches are excluded so they can propagate to PixiJS normally.
+    e.preventDefault();
 
     const { layout } = this.options;
     const gestureType = this.detectTouchGesture(e);
