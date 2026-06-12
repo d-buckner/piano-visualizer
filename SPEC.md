@@ -5,8 +5,56 @@ Reference mock: `mock-2.png` in repository root.
 ## Overview
 
 Rendering changes to bring the visualizer's atmosphere in line with the
-reference mock. All changes are internal to this package — no public API
-changes.
+reference mock. The visual-polish items below are internal rendering changes
+unless a specific modularization task says otherwise.
+
+## Product Direction
+
+The package should become a modular piano visualization toolkit rather than a
+single hard-wired keyboard-plus-piano-roll screen. The immediate downstream
+need is p2piano sheet-music mode: it needs to embed a compact live keyboard
+below an OpenSheetMusicDisplay score without constructing or rendering the
+piano-roll timeline.
+
+The current visual polish work remains valid, but any structural refactor should
+preserve a clean split between reusable rendering primitives and composed
+experiences.
+
+## Module Boundaries
+
+The package should expose composable modules for:
+
+- Keyboard rendering and pointer input.
+- Active-note highlighting.
+- MIDI note range and viewport control.
+- Shared sizing and note/key alignment.
+- Piano-roll timeline rendering.
+- Full visualizer composition that combines keyboard plus piano roll.
+
+The keyboard module must be independently usable in compact or docked contexts,
+including a lower input strip under a sheet-music view. Consumers should be able
+to construct the keyboard without constructing the piano-roll timeline, ambient
+particles, falling notes, or roll-specific effects.
+
+The piano-roll module is optional. It may be composed with the keyboard for the
+full performance visualizer, but it must not own note input, host room state, or
+audio scheduling. Package consumers own application state and pass projected
+note state and callbacks into the package.
+
+Shared visual concerns such as MIDI note range, active-note colors,
+local/remote note projection, sizing, and pointer/keyboard input mapping should
+live in package-level primitives that both keyboard-only and keyboard-plus-roll
+compositions can reuse.
+
+Package APIs should remain framework-agnostic where practical. Svelte lifecycle,
+plugin wiring, room-specific controls, collaboration state, and audio behavior
+belong in downstream app adapters, not in this package core.
+
+The package must avoid assuming it owns a full-screen or full-main-surface
+layout. Consumers should be able to embed modules in constrained layouts with
+stable dimensions, including a compact lower keyboard strip. Resize and
+`forceRedraw` flows must continue to work for both standalone modules and full
+compositions.
 
 ## 1. Note glow and fade-out
 
