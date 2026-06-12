@@ -31,8 +31,16 @@ vi.mock('pixi.js', () => ({
   FillGradient: vi.fn().mockImplementation(() => ({
     addColorStop: vi.fn(),
     buildLinearGradient: vi.fn(),
-    texture: null,
+    texture: { destroy: vi.fn() },
   })),
+  Sprite: vi.fn().mockImplementation(() => ({
+    eventMode: 'auto',
+    width: 0,
+    height: 0,
+  })),
+  Texture: {
+    from: vi.fn().mockReturnValue({ destroy: vi.fn() }),
+  },
   Color: vi.fn().mockImplementation(() => ({
     toArray: vi.fn().mockReturnValue([1, 1, 1, 1]),
     toHex: vi.fn().mockReturnValue('#ffffff'),

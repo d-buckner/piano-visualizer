@@ -10,6 +10,8 @@ import {
   Container,
   FillGradient,
   Graphics,
+  Sprite,
+  Texture,
 } from 'pixi.js';
 import Layout from '../Layout';
 import Piano from '../Piano';
@@ -54,6 +56,7 @@ export default class Visualization {
   private htmlContainer: HTMLDivElement;
   private renderContainer: Container;
   private sceneBackdrop: Graphics;
+  private fadeOverlay: Sprite;
   private backgroundParticles: BackgroundParticles;
   private resizeObserver: ResizeObserver;
   private gestureAnimator: GestureAnimator;
@@ -67,6 +70,8 @@ export default class Visualization {
     this.app.resizeTo = config.container;
     this.renderContainer = new Container();
     this.sceneBackdrop = new Graphics();
+    this.fadeOverlay = new Sprite(this.createFadeTexture());
+    this.fadeOverlay.eventMode = 'none';
     this.layout = new Layout({
       width: config.container.clientWidth,
       height: config.container.clientHeight,
@@ -96,6 +101,7 @@ export default class Visualization {
     this.app.stage.addChild(this.sceneBackdrop);
     this.app.stage.addChild(this.backgroundParticles.container);
     this.app.stage.addChild(this.renderContainer);
+    this.app.stage.addChild(this.fadeOverlay);
     
     this.gestureAnimator = new GestureAnimator({
       onPositionChange: (x) => {
@@ -208,10 +214,6 @@ export default class Visualization {
 
     this.sceneBackdrop.clear();
     this.sceneBackdrop.rect(0, 0, width, height).fill(gradient);
-    this.sceneBackdrop.rect(0, 0, width, Math.max(1, pianoY * 0.35)).fill({
-      color: '#000000',
-      alpha: 0.28,
-    });
 
     const edgeWidth = Math.max(80, width * 0.16);
     this.sceneBackdrop.rect(0, 0, edgeWidth, height).fill({
@@ -226,6 +228,27 @@ export default class Visualization {
       color: '#111827',
       alpha: 0.7,
     });
+
+    this.fadeOverlay.width = width;
+    this.fadeOverlay.height = pianoY;
+  }
+
+  private createFadeTexture(): Texture {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return Texture.from(canvas);
+    }
+    const gradient = ctx.createLinearGradient(0, 0, 0, 256);
+    gradient.addColorStop(0, 'rgba(2, 4, 11, 0.7)');
+    gradient.addColorStop(0.18, 'rgba(2, 4, 11, 0.35)');
+    gradient.addColorStop(0.32, 'rgba(2, 4, 11, 0)');
+    gradient.addColorStop(1, 'rgba(2, 4, 11, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 1, 256);
+    return Texture.from(canvas);
   }
 
   private async init() {
