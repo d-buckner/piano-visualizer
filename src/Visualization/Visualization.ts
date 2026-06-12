@@ -80,6 +80,8 @@ export default class Visualization {
 
     this.backgroundParticles = new BackgroundParticles({
       layout: this.layout,
+      getActiveBlocks: () =>
+        this.pianoRoll.getBlockPositions(this.renderContainer.x),
     });
     this.pianoRoll = new PianoRoll({
       container: this.renderContainer,

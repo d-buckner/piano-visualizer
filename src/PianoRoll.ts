@@ -7,6 +7,7 @@ import { Container, FillGradient, Graphics, type Ticker } from 'pixi.js';
 import Layout from './Layout';
 import GraphicsPool from './lib/GraphicsPool';
 import { adjustColor } from './lib/color';
+import type { ActiveBlock } from './lib/ActiveBlock';
 
 const MIN_BLOCK_HEIGHT = 8;
 const ANIMATION_SPEED_FACTOR = 0.2;
@@ -40,6 +41,11 @@ type GraphicsOptions = {
   height: number;
   color: string;
   graphics?: Graphics;
+};
+
+type BlockLayout = {
+  x: number;
+  width: number;
 };
 
 const RADIUS = 5;
@@ -132,6 +138,31 @@ export default class PianoRoll {
     this.blocks.forEach((midiBlocks) => {
       this.renderMidiBlocks(midiBlocks, ticker);
     });
+  }
+
+  public getBlockPositions(
+    containerOffsetX: number,
+  ): ActiveBlock[] {
+    const result: ActiveBlock[] = [];
+    const pianoRollHeight = this.config.layout.getPianoRollHeight();
+
+    this.blocks.forEach((midiBlocks) => {
+      for (const block of midiBlocks) {
+        const screenY = block.graphics.y;
+        const height = block.height;
+        if (screenY + height < 0 || screenY > pianoRollHeight) continue;
+
+        result.push({
+          x: block.graphics.x + containerOffsetX,
+          y: screenY,
+          width: block.lastWidth ?? 0,
+          height,
+          color: block.color,
+        });
+      }
+    });
+
+    return result;
   }
 
   public forceRedraw() {
@@ -231,7 +262,7 @@ export default class PianoRoll {
     }
   }
 
-  private getBlockLayout(block: Block): { x: number; width: number } {
+  private getBlockLayout(block: Block): BlockLayout {
     if (!block.needsRedraw && block.lastX !== undefined && block.lastWidth !== undefined) {
       return {
         x: block.lastX,
