@@ -81,6 +81,16 @@ Against the renderer this replaced, on a real GPU (Apple M4 Pro via ANGLE Metal,
 Both backends sit at vsync with indistinguishable frame distributions. There is
 no frame-rate win here; the win is -93% gzipped and -85% JS heap.
 
+### Known issues
+
+- `setRange(centerMidi, visibleKeys)` stores and reports `visibleKeys` verbatim,
+  but the width factor derived from it is clamped so that between 5 and 52 keys
+  fit on screen. Asking for 88 visible keys on a narrow viewport therefore
+  reports 88 while rendering at roughly 52 keys' worth of width. This is
+  unchanged from 1.x; it is left alone here deliberately, because changing
+  rendering in the same release that replaced the renderer would make any visual
+  difference impossible to attribute.
+
 ### Tooling
 
 - pnpm is the package manager; `package-lock.json` is removed and
