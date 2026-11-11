@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import KeyboardInput from './KeyboardInput';
+import KeyboardInput from './keyboardInput';
 import Layout from '../Layout';
 
 function makeLayout() {

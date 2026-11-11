@@ -10,7 +10,7 @@
  * no pixi, no three. this file plus color.ts is the whole renderer.
  */
 import { type RGBA, toFloats } from './color';
-import { WebGL2UnavailableError } from './context';
+import { WebGL2UnavailableError } from './webgl';
 
 export type Rect = {
   x: number;

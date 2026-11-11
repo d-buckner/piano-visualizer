@@ -1,436 +1,129 @@
 /**
- * scrolling note blocks - renders the falling/rising note visualization.
- * animates blocks over time and cleans up off-screen graphics.
- * uses rounded rectangles with configurable colors and minimum heights.
+ * just the piano roll: note blocks scrolling toward the keyboard.
+ *
+ * standalone host — owns a canvas, a resize observer and a raf loop, and draws
+ * nothing but the roll. `pianoHeight` reserves the strip a host's own keyboard
+ * occupies so blocks stop at the top of it rather than sliding underneath;
+ * leave it 0 when the roll has the whole element to itself.
+ *
+ * it never owns note input or audio: state comes in through startNote/endNote.
  */
-import { type ColorSource, Container, FillGradient, Graphics, type Ticker } from 'pixi.js';
 import Layout, { type Range } from './Layout';
-import GraphicsPool from './lib/GraphicsPool';
-import { adjustColor } from './lib/color';
 import type { ActiveBlock } from './lib/ActiveBlock';
-import { type MountTarget, type Mounted, mount } from './lib/Stage';
-
-const MIN_BLOCK_HEIGHT = 8;
-const ANIMATION_SPEED_FACTOR = 0.2;
-const GLOW_EXPANSION = 6;
-const GLOW_ALPHA = 0.32;
-const GLOW_STEPS = 4;
-
-/**
- * read lazily rather than at import time: this module must be safe to load in a
- * worker, during SSR, or in a bundler that evaluates it before a DOM exists.
- */
-let partialPixelSize: number | null = null;
-function getPartialPixelSize(): number {
-  if (partialPixelSize === null) {
-    const ratio = globalThis.window?.devicePixelRatio ?? 1;
-    partialPixelSize = 1 / (ratio > 0 ? ratio : 1);
-  }
-
-  return partialPixelSize;
-}
+import NoteRoll from './lib/NoteRoll';
+import QuadRenderer from './lib/QuadRenderer';
 
 export type PianoRollConfig = {
-  /**
-   * an HTMLElement mounts the roll standalone (own pixi application, resize
-   * handling and ticker). a pixi Container embeds it in an existing scene.
-   */
-  container: MountTarget;
-  /** required when container is a pixi Container */
-  layout?: Layout;
-  /**
-   * height reserved for a keyboard below the roll. 0 (the default for a
-   * standalone roll) makes the notes use the whole element.
-   */
+  container: HTMLElement;
+  /** height reserved for a keyboard drawn by the host below the roll */
   pianoHeight?: number;
-  backgroundColor?: ColorSource;
+  backgroundColor?: string;
   range?: Range;
 };
 
-type Block = {
-  isActive: boolean;
-  graphics: Graphics;
-  glowGraphics: Graphics;
-  y: number;
-  height: number;
-  midi: number;
-  color: string;
-  identifier?: string;
-  lastX?: number;
-  lastWidth?: number;
-  lastHeight?: number;
-  needsRedraw?: boolean;
-};
-
-type GraphicsOptions = {
-  width: number;
-  height: number;
-  color: string;
-  graphics?: Graphics;
-};
-
-type BlockLayout = {
-  x: number;
-  width: number;
-};
-
-const RADIUS = 5;
-
 export default class PianoRoll {
-  config: PianoRollConfig;
-  container: Container;
-  blocks: Map<number, Block[]> = new Map();
-  private layout: Layout;
-  private stage: Mounted['stage'];
-  private rootContainer: Container;
-  private glowContainer: Container;
-  private graphicsPool: GraphicsPool;
-  private glowGraphicsPool: GraphicsPool;
-  private blockGradientCache = new Map<string, FillGradient>();
+  private readonly canvas: HTMLCanvasElement;
+  private readonly renderer: QuadRenderer;
+  private readonly layout: Layout;
+  private readonly roll: NoteRoll;
+  private readonly observer: ResizeObserver;
+  private readonly config: PianoRollConfig;
+  private raf = 0;
+  private lastTime = 0;
+  private frames = 0;
+  private destroyed = false;
 
   constructor(config: PianoRollConfig) {
     this.config = config;
-    this.rootContainer = new Container();
-    this.glowContainer = new Container();
-    this.container = new Container();
-    this.graphicsPool = new GraphicsPool();
-    this.glowGraphicsPool = new GraphicsPool();
+    this.canvas = document.createElement('canvas');
+    this.canvas.style.cssText = 'display:block;width:100%;height:100%;touch-action:none;';
+    config.container.append(this.canvas);
 
-    const mounted: Mounted = mount({
-      name: 'PianoRoll',
-      container: config.container,
-      layout: config.layout,
+    this.renderer = new QuadRenderer(this.canvas);
+    this.layout = new Layout({
+      width: config.container.clientWidth,
+      height: config.container.clientHeight,
       pianoHeight: config.pianoHeight ?? 0,
-      backgroundColor: config.backgroundColor,
-      onTick: (ticker) => this.render(ticker),
-      onResize: () => this.forceRedraw(),
     });
-    this.layout = mounted.layout;
-    this.stage = mounted.stage;
+    this.roll = new NoteRoll(this.layout);
 
-    this.rootContainer.addChild(this.glowContainer);
-    this.rootContainer.addChild(this.container);
-    mounted.parent.addChild(this.rootContainer);
-
-    if (config.range && !config.layout) {
-      this.setRange(config.range.centerMidi, config.range.visibleKeys);
+    if (config.range) {
+      this.layout.setRange(config.range.centerMidi, config.range.visibleKeys);
     }
+
+    this.resize();
+    this.observer = new ResizeObserver(() => this.resize());
+    this.observer.observe(config.container);
+
+    this.lastTime = performance.now();
+    const loop = (now: number) => {
+      if (this.destroyed) {
+        return;
+      }
+      const deltaMS = now - this.lastTime;
+      this.lastTime = now;
+      this.render(deltaMS);
+      this.frames += 1;
+      this.raf = requestAnimationFrame(loop);
+    };
+    this.raf = requestAnimationFrame(loop);
+  }
+
+  public get frameCount(): number {
+    return this.frames;
+  }
+
+  public get instanceCount(): number {
+    return this.renderer.instances;
+  }
+
+  public startNote(midi: number, color: string, identifier?: string): void {
+    this.roll.startNote(midi, color, identifier);
+  }
+
+  public endNote(midi: number, identifier?: string): void {
+    this.roll.endNote(midi, identifier);
+  }
+
+  public getBlockPositions(): ActiveBlock[] {
+    return this.roll.getBlockPositions();
   }
 
   public setRange(centerMidi: number, visibleKeys: number): void {
     this.layout.setRange(centerMidi, visibleKeys);
-    this.forceRedraw();
   }
 
   public getRange(): Range {
     return this.layout.getRange();
   }
 
-  public setCenterMidi(midi: number): void {
-    this.setRange(midi, this.layout.getVisibleKeys());
+  /**
+   * No-op; the renderer rebuilds its instance buffer from state every frame, so
+   * there is nothing to invalidate. Kept for API compatibility.
+   */
+  public forceRedraw(): void {}
+
+  public resize(): void {
+    const width = this.config.container.clientWidth;
+    const height = this.config.container.clientHeight;
+
+    this.layout.setWidth(width);
+    this.layout.setHeight(height);
+    this.renderer.resize(width, height);
   }
 
-  public getCenterMidi(): number {
-    return this.layout.getCenterMidi();
+  public render(deltaMS = 16): void {
+    this.renderer.begin(this.config.backgroundColor);
+    this.roll.render(this.renderer, deltaMS);
+    this.renderer.flush();
   }
 
-  public setVisibleKeys(visibleKeys: number): void {
-    this.setRange(this.layout.getCenterMidi(), visibleKeys);
+  public destroy(): void {
+    this.destroyed = true;
+    cancelAnimationFrame(this.raf);
+    this.observer.disconnect();
+    this.roll.destroy();
+    this.renderer.destroy();
+    this.canvas.remove();
   }
-
-  public getVisibleKeys(): number {
-    return this.layout.getVisibleKeys();
-  }
-
-  public setWidthFactor(widthFactor: number): void {
-    this.layout.setWidthFactor(widthFactor);
-    this.forceRedraw();
-  }
-
-  public getWidthFactor(): number {
-    return this.layout.getWidthFactor();
-  }
-
-  public startNote(midi: number, color: string, identifier?: string) {
-    const element = this.layout.getRollElement(midi);
-    const graphics = this.graphicsPool.get();
-    const glowGraphics = this.glowGraphicsPool.get();
-    graphics.x = element.x;
-    graphics.y = this.layout.getPianoRollHeight();
-    glowGraphics.x = element.x - GLOW_EXPANSION;
-    glowGraphics.y = this.layout.getPianoRollHeight() - GLOW_EXPANSION;
-    graphics.alpha = 1;
-    glowGraphics.alpha = GLOW_ALPHA;
-    this.updateGraphics({
-      width: element.width,
-      height: 0,
-      color,
-      graphics,
-    });
-    this.updateGlowGraphics(glowGraphics, element.width, 0, color);
-
-    const existingEntries = this.blocks.get(midi);
-    if (!existingEntries) {
-      this.blocks.set(midi, []);
-    }
-    this.blocks.get(midi)!.push({
-      isActive: true,
-      y: 0,
-      height: 0,
-      graphics,
-      glowGraphics,
-      midi,
-      color,
-      identifier,
-      lastX: element.x,
-      lastWidth: element.width,
-      lastHeight: 0,
-      needsRedraw: true,
-    });
-    this.glowContainer.addChild(glowGraphics);
-    this.container.addChild(graphics);
-  }
-
-  public endNote(midi: number, identifier?: string) {
-    const blocks = this.blocks.get(midi);
-    if (!blocks?.length) {
-      return;
-    }
-
-    if (identifier) {
-      for (const block of blocks) {
-        if (identifier === block.identifier) {
-          block.isActive = false;
-        }
-      }
-      return;
-    }
-
-    for (const block of blocks) {
-      if (block.isActive && !block.identifier) {
-        block.isActive = false;
-      }
-    }
-  }
-
-  public render(ticker: Ticker) {
-    // standalone rolls own their transform; embedded ones are panned by the host
-    if (this.stage) {
-      this.rootContainer.x = this.layout.getX();
-    }
-
-    this.blocks.forEach((midiBlocks) => {
-      this.renderMidiBlocks(midiBlocks, ticker);
-    });
-  }
-
-  public getBlockPositions(
-    containerOffsetX: number,
-  ): ActiveBlock[] {
-    const result: ActiveBlock[] = [];
-    const pianoRollHeight = this.layout.getPianoRollHeight();
-
-    this.blocks.forEach((midiBlocks) => {
-      for (const block of midiBlocks) {
-        const screenY = block.graphics.y;
-        const height = block.height;
-        if (screenY + height < 0 || screenY > pianoRollHeight) continue;
-
-        result.push({
-          x: block.graphics.x + containerOffsetX,
-          y: screenY,
-          width: block.lastWidth ?? 0,
-          height,
-          color: block.color,
-        });
-      }
-    });
-
-    return result;
-  }
-
-  public forceRedraw() {
-    this.blocks.forEach((midiBlocks) => {
-      midiBlocks.forEach((block) => {
-        block.needsRedraw = true;
-      });
-    });
-  }
-
-  public destroy() {
-    this.graphicsPool.clear();
-    this.glowGraphicsPool.clear();
-    this.blockGradientCache.forEach((gradient) => gradient.texture.destroy());
-    this.blockGradientCache.clear();
-    this.container.destroy({ children: true });
-    this.rootContainer.destroy({ children: true });
-    this.stage?.destroy();
-  }
-
-  private renderMidiBlocks(blocks: Block[], ticker: Ticker) {
-    const distance = ticker.deltaMS * ANIMATION_SPEED_FACTOR;
-    // buffer for block indexes marked for deletion
-    const blockDeletionBuffer: number[] = [];
-
-    blocks.forEach((block) => {
-      const pianoRollHeight = this.layout.getPianoRollHeight();
-
-      block.y -= distance;
-
-      if (block.isActive) {
-        block.height += distance;
-        const { x, width } = this.getBlockLayout(block);
-        const height = block.height;
-        const y = block.y + pianoRollHeight;
-
-        this.updateBlockPosition(block, x, y);
-
-        // Only redraw if geometry changed significantly
-        if (this.hasBlockGeometryChanged(block, x, width, height)) {
-          this.updateGraphics({
-            width,
-            height,
-            color: block.color,
-            graphics: block.graphics,
-          });
-          this.updateGlowGraphics(block.glowGraphics, width, height, block.color);
-
-          block.lastX = x;
-          block.lastWidth = width;
-          block.lastHeight = height;
-          block.needsRedraw = false;
-        }
-        return;
-      }
-
-      if (block.y + block.height + pianoRollHeight <= 0) {
-        // block is offscreen and needs to be marked for later cleanup
-        const blockIndex = blocks.findIndex((b) => b === block);
-        blockDeletionBuffer.push(blockIndex);
-        return;
-      }
-
-      const { x, width } = this.getBlockLayout(block);
-      const y = block.y + pianoRollHeight;
-      const height = Math.max(block.height, MIN_BLOCK_HEIGHT);
-      this.updateBlockPosition(block, x, y);
-
-      // Only redraw if geometry changed significantly
-      if (this.hasBlockGeometryChanged(block, x, width, height)) {
-        this.updateGraphics({
-          width,
-          height,
-          color: block.color,
-          graphics: block.graphics,
-        });
-        this.updateGlowGraphics(block.glowGraphics, width, height, block.color);
-
-        block.lastX = x;
-        block.lastWidth = width;
-        block.lastHeight = height;
-        block.needsRedraw = false;
-      }
-    });
-
-    // flush buffer of blocks marked for removal (reverse iteration for safe deletion)
-    for (let i = blockDeletionBuffer.length - 1; i >= 0; i--) {
-      const blockIndex = blockDeletionBuffer[i];
-      const block = blocks[blockIndex];
-      if (!block) {
-        continue;
-      }
-      this.graphicsPool.return(block.graphics);
-      this.glowGraphicsPool.return(block.glowGraphics);
-      if (blocks.length === 1) {
-        this.blocks.delete(block.midi);
-        return;
-      }
-      blocks.splice(blockIndex, 1);
-    }
-  }
-
-  private getBlockLayout(block: Block): BlockLayout {
-    if (!block.needsRedraw && block.lastX !== undefined && block.lastWidth !== undefined) {
-      return {
-        x: block.lastX,
-        width: block.lastWidth,
-      };
-    }
-
-    return this.layout.getRollElement(block.midi);
-  }
-
-  private updateBlockPosition(block: Block, x: number, y: number): void {
-    block.graphics.x = x;
-    block.graphics.y = y;
-    block.glowGraphics.x = x - GLOW_EXPANSION;
-    block.glowGraphics.y = y - GLOW_EXPANSION;
-  }
-
-  private hasBlockGeometryChanged(block: Block, x: number, width: number, height: number): boolean {
-    const partialPixel = getPartialPixelSize();
-    return block.needsRedraw ||
-           Math.abs((block.lastX ?? 0) - x) >= partialPixel ||
-           Math.abs((block.lastWidth ?? 0) - width) >= partialPixel ||
-           Math.abs((block.lastHeight ?? 0) - height) >= partialPixel;
-  }
-
-  private updateGraphics(options: GraphicsOptions) {
-    const { graphics, width, height, color } = options;
-    let fill: FillGradient | string = color;
-    try {
-      fill = this.getBlockGradient(color);
-    } catch {
-      // FillGradient requires canvas — fall back in test environments
-    }
-    return (graphics ?? new Graphics())
-      .clear()
-      .roundRect(0, 0, width, height, RADIUS)
-      .fill(fill)
-      .stroke({
-        width: 1,
-        color: adjustColor(color, -0.3),
-      });
-  }
-
-  private getBlockGradient(color: string): FillGradient {
-    const cached = this.blockGradientCache.get(color);
-    if (cached) {
-      return cached;
-    }
-
-    // 4-arg form on purpose: the options-object constructor landed after 8.6.4,
-    // and the surrounding try/catch in updateGraphics silently swallowed the
-    // failure, so notes fell back to a flat fill.
-    const gradient = new FillGradient(0, 0, 0, 1);
-    gradient.addColorStop(0, adjustColor(color, -0.18));
-    gradient.addColorStop(0.35, color);
-    gradient.addColorStop(1, adjustColor(color, 0.12));
-    gradient.buildLinearGradient();
-    this.blockGradientCache.set(color, gradient);
-    return gradient;
-  }
-
-  private updateGlowGraphics(graphics: Graphics, width: number, height: number, color: string): Graphics {
-    graphics.clear();
-
-    for (let i = 0; i < GLOW_STEPS; i++) {
-      const t = i / (GLOW_STEPS - 1); // 0 = outermost, 1 = innermost
-      const expansion = GLOW_EXPANSION * (1.2 - t * 0.75);
-      const offset = GLOW_EXPANSION - expansion;
-      const alpha = 0.025 + t * t * 0.16;
-
-      graphics
-        .roundRect(
-          offset, offset,
-          width + expansion * 2,
-          height + expansion * 2,
-          RADIUS + expansion,
-        )
-        .fill({ color, alpha });
-    }
-
-    return graphics;
-  }
-
 }

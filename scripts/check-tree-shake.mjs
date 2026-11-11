@@ -9,43 +9,46 @@
  */
 import { build } from 'esbuild';
 
-const EXTERNAL = ['pixi.js', 'd-piano', 'tone'];
+const EXTERNAL = ['d-piano', 'tone'];
 
 /**
  * each case: what a consumer imports, and which internal modules must NOT end
  * up in the bundle.
+ *
+ * names are substrings of the emitted paths under dist/, so 'Piano/Piano' means
+ * the keyboard module specifically rather than anything that mentions piano.
  */
 const CASES = [
   {
     name: 'keyboard only (subpath)',
     code: `import Piano from 'piano-visualizer/keyboard'; export default Piano;`,
-    forbidden: ['PianoRoll', 'BackgroundParticles', 'GestureAnimator', 'VisualizationController', 'PianoAudio', 'loadDPiano'],
+    forbidden: ['NoteRoll', 'Particles', 'GestureAnimator', 'VisualizationController', 'PianoAudio', 'loadDPiano'],
   },
   {
     name: 'piano roll only (subpath)',
     code: `import PianoRoll from 'piano-visualizer/piano-roll'; export default PianoRoll;`,
-    forbidden: ['PianoController', 'PianoTheme', 'BackgroundParticles', 'GestureAnimator', 'VisualizationController', 'PianoAudio', 'loadDPiano'],
+    forbidden: ['keyboardInput', 'keyboardLayers', 'PianoTheme', 'Particles', 'GestureAnimator', 'VisualizationController', 'PianoAudio', 'loadDPiano'],
   },
   {
     name: 'keyboard only (root barrel)',
     code: `import { Piano } from 'piano-visualizer'; export default Piano;`,
-    forbidden: ['PianoRoll', 'BackgroundParticles', 'VisualizationController', 'loadDPiano'],
+    forbidden: ['NoteRoll', 'Particles', 'VisualizationController', 'loadDPiano'],
   },
   {
     name: 'audio only',
     code: `import PianoAudio from 'piano-visualizer/audio'; export default PianoAudio;`,
-    forbidden: ['PianoRoll', 'Piano/Piano', 'Visualization', 'BackgroundParticles'],
+    forbidden: ['NoteRoll', 'Piano/Piano', 'QuadRenderer', 'Particles'],
   },
   {
     name: 'core only',
     code: `import { Layout } from 'piano-visualizer/core'; export default Layout;`,
-    forbidden: ['PianoRoll', 'Piano/Piano', 'Visualization', 'loadDPiano'],
+    forbidden: ['NoteRoll', 'Piano/Piano', 'QuadRenderer', 'loadDPiano'],
   },
   {
     name: 'full composition',
     code: `import Visualization from 'piano-visualizer'; export default Visualization;`,
     forbidden: ['loadDPiano'],
-    required: ['PianoRoll', 'Piano/Piano', 'BackgroundParticles'],
+    required: ['NoteRoll', 'keyboardLayers', 'Particles', 'GestureAnimator'],
   },
 ];
 

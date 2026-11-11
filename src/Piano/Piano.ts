@@ -1,507 +1,132 @@
 /**
- * piano renderer - draws the piano keys and tracks which ones are active.
- * uses separate containers for natural and accidental keys to handle z-ordering.
- * supports multiple colors per key and optional identifiers for complex scenarios.
+ * prototype: the keyboard drawn by QuadRenderer instead of pixi.
+ *
+ * standalone host - owns a canvas, a resize observer, a raf loop and pointer
+ * input. the drawing itself lives in `keyboardLayers.ts` so the full-scene GL
+ * host can reuse it. pointer input is plain arithmetic: keys are laid out by
+ * formula, so hit testing is a containment scan and pixi's event system is not
+ * needed.
  */
-import { type ColorSource, Container, Graphics, FillGradient } from 'pixi.js';
 import Layout, { type Range } from '../Layout';
-import Pitch from '../Pitch';
-import PianoController from './PianoController';
-import { PianoTheme } from './PianoTheme';
-import { adjustColor } from '../lib/color';
-import { type MountTarget, type Mounted, mount } from '../lib/Stage';
-
-const MIDI_RANGE = {
-    MIN: 21, // A0
-    MAX: 108, // C8
-    TOTAL_KEYS: 88
-} as const;
-
-const KEY_SHAPE = {
-    NATURAL_RADIUS: 4,
-    ACCIDENTAL_RADIUS: 3,
-    NATURAL_SHADOW_DEPTH: 3,
-    ACCIDENTAL_SHADOW_DEPTH: 5,
-    ACCIDENTAL_IDLE_MARGIN: 3,
-    ACCIDENTAL_ACTIVE_MARGIN: 2,
-    ACCIDENTAL_SURFACE_Y: 3,
-    FRAME_HEIGHT: 8,
-} as const;
+import KeyState from '../lib/keyState';
+import KeyboardInput from '../lib/keyboardInput';
+import QuadRenderer from '../lib/QuadRenderer';
+import { drawKeyboard } from '../lib/keyboardLayers';
 
 export type PianoConfig = {
-    /**
-     * an HTMLElement mounts the keyboard standalone (it gets its own pixi
-     * application, resize handling and ticker). a pixi Container embeds it in a
-     * scene the consumer already renders.
-     */
-    container: MountTarget;
-    backgroundColor?: ColorSource;
-    /** required when container is a pixi Container */
-    layout?: Layout;
-    /** keyboard height for a standalone mount, 'fill' takes the whole element */
-    pianoHeight?: number | 'fill';
-    /** initial viewport, only applied to a layout this module owns */
-    range?: Range;
-    onKeyDown?: (midi: number) => void;
-    onKeyUp?: (midi: number) => void;
+  container: HTMLElement;
+  layout?: Layout;
+  range?: Range;
+  backgroundColor?: string;
+  onKeyDown?: (midi: number) => void;
+  onKeyUp?: (midi: number) => void;
 };
 
-type ActiveKey = {
-    color: string;
-    midi: number;
-    identifier?: string;
-}
-
-type KeyElement = {
-    x: number;
-    width: number;
-    height: number;
-}
-
 export default class Piano {
-    private container: Container;
-    private naturalContainer: Container;
-    private accidentalContainer: Container;
-    private frameGraphics: Graphics;
-    private graphics: Graphics[];
-    private layout: Layout;
-    private stage: Mounted['stage'];
-    private controller: PianoController;
-    private activeKeys: Map<number, ActiveKey[]> = new Map();
-    private gradientCache: Map<string, FillGradient> = new Map();
-    private dirtyKeys: Set<number> = new Set();
-    private needsRedraw = true; // Initial render needed
+  private canvas: HTMLCanvasElement;
+  private renderer: QuadRenderer;
+  private layout: Layout;
+  private config: PianoConfig;
+  private active = new KeyState();
+  private observer: ResizeObserver;
+  private input: KeyboardInput;
+  private raf = 0;
+  private frames = 0;
+  private width = 0;
+  private height = 0;
+  private destroyed = false;
 
-    constructor(config: PianoConfig) {
-        this.container = new Container();
-        this.naturalContainer = new Container();
-        this.accidentalContainer = new Container();
-        this.frameGraphics = new Graphics();
+  constructor(config: PianoConfig) {
+    this.config = config;
+    this.canvas = document.createElement('canvas');
+    this.canvas.style.cssText = 'display:block;width:100%;height:100%;touch-action:none;';
+    config.container.append(this.canvas);
 
-        const mounted: Mounted = mount({
-            name: 'Piano',
-            container: config.container,
-            layout: config.layout,
-            pianoHeight: config.pianoHeight ?? 'fill',
-            backgroundColor: config.backgroundColor,
-            onTick: () => this.render(),
-            onResize: () => this.forceRedraw(),
-        });
-        this.layout = mounted.layout;
-        this.stage = mounted.stage;
+    this.renderer = new QuadRenderer(this.canvas);
+    this.layout = config.layout ?? new Layout({
+      width: config.container.clientWidth,
+      height: config.container.clientHeight,
+      pianoHeight: config.container.clientHeight,
+    });
 
-        this.graphics = Array.from({ length: MIDI_RANGE.TOTAL_KEYS }, () => new Graphics());
-        this.initializeKeyContainers(mounted.parent);
-        this.controller = new PianoController({
-            graphics: this.graphics,
-            onKeyDown: (midi) => config.onKeyDown?.(midi),
-            onKeyUp: (midi) => config.onKeyUp?.(midi),
-            layout: this.layout,
-        });
-
-        if (config.range && !config.layout) {
-            this.setRange(config.range.centerMidi, config.range.visibleKeys);
-        }
-
-        this.render();
+    if (config.range && !config.layout) {
+      this.layout.setRange(config.range.centerMidi, config.range.visibleKeys);
     }
 
-    public setRange(centerMidi: number, visibleKeys: number): void {
-        this.layout.setRange(centerMidi, visibleKeys);
-        this.forceRedraw();
-    }
-
-    public getRange(): Range {
-        return this.layout.getRange();
-    }
-
-    public setCenterMidi(midi: number): void {
-        this.setRange(midi, this.layout.getVisibleKeys());
-    }
-
-    public getCenterMidi(): number {
-        return this.layout.getCenterMidi();
-    }
-
-    public setVisibleKeys(visibleKeys: number): void {
-        this.setRange(this.layout.getCenterMidi(), visibleKeys);
-    }
-
-    public getVisibleKeys(): number {
-        return this.layout.getVisibleKeys();
-    }
-
-    public setWidthFactor(widthFactor: number): void {
-        this.layout.setWidthFactor(widthFactor);
-        this.forceRedraw();
-    }
-
-    public getWidthFactor(): number {
-        return this.layout.getWidthFactor();
-    }
-
-    public keyDown(midi: number, color: string, identifier?: string) {
-        if (!this.isValidMidi(midi)) return;
-
-        if (!this.activeKeys.has(midi)) {
-            this.activeKeys.set(midi, []);
-        }
-
-        this.activeKeys.get(midi)!.push({
-            color,
-            midi,
-            identifier,
-        });
-        
-        this.markKeyDirty(midi);
-    }
-
-    public keyUp(midi: number, identifier?: string) {
-        if (!this.isValidMidi(midi)) return;
-
-        const existingEntries = this.activeKeys.get(midi);
-        if (!existingEntries) return;
-
-        if (!identifier) {
-            existingEntries.pop();
-            if (existingEntries.length === 0) {
-                this.activeKeys.delete(midi);
-            }
-            this.markKeyDirty(midi);
-            return;
-        }
-
-        const indexToRemove = existingEntries.findIndex(
-            (activeKey) => activeKey.identifier === identifier
-        );
-        if (indexToRemove === -1) return;
-
-        existingEntries.splice(indexToRemove, 1);
-        if (existingEntries.length === 0) {
-            this.activeKeys.delete(midi);
-        }
-        this.markKeyDirty(midi);
-    }
-
-    public render() {
-        if (!this.needsRedraw && this.dirtyKeys.size === 0) {
-            return;
-        }
-
-        if (this.needsRedraw) {
-            this.markAllKeysDirty();
-        }
-
-        this.dirtyKeys.forEach((midi) => {
-            this.createKeyGraphic(new Pitch(midi));
-        });
-        this.dirtyKeys.clear();
-        this.drawKeyboardFrame();
-
-        const pianoY = this.layout.getPianoY();
-        this.container.y = pianoY;
-
-        // a standalone keyboard owns its own transform, so it has to carry the
-        // horizontal pan that setRange computes. an embedded one must not, or
-        // the host's own panning container would apply it twice.
-        if (this.stage) {
-            this.container.x = this.layout.getX();
-        }
-
-        this.needsRedraw = false;
-    }
-
-    public forceRedraw() {
-        this.needsRedraw = true;
-    }
-
-    private initializeKeyContainers(parent: Container): void {
-        for (let key = 0; key < MIDI_RANGE.TOTAL_KEYS; key++) {
-            const midi = key + MIDI_RANGE.MIN;
-            const pitch = new Pitch(midi);
-            const targetContainer = pitch.isNatural
-                ? this.naturalContainer
-                : this.accidentalContainer;
-
-            targetContainer.addChild(this.graphics[key]);
-            this.dirtyKeys.add(midi);
-        }
-
-        this.container.addChild(this.naturalContainer);
-        this.container.addChild(this.accidentalContainer);
-        this.container.addChild(this.frameGraphics);
-        parent.addChild(this.container);
-    }
-
-    private markAllKeysDirty(): void {
-        for (let midi = MIDI_RANGE.MIN; midi <= MIDI_RANGE.MAX; midi++) {
-            this.dirtyKeys.add(midi);
-        }
-    }
-
-    private markKeyDirty(midi: number): void {
-        this.dirtyKeys.add(midi);
-    }
-
-    private isValidMidi(midi: number): boolean {
-        if (midi < MIDI_RANGE.MIN || midi > MIDI_RANGE.MAX) {
-            console.warn(`Invalid MIDI note: ${midi}. Valid range is ${MIDI_RANGE.MIN}-${MIDI_RANGE.MAX}`);
-            return false;
-        }
-        return true;
-    }
-
-    private createKeyGraphic(pitch: Pitch) {
-        const keyElement = this.layout.getKeyElement(pitch.midi);
-        const graphic = this.graphics[pitch.midi - 21];
-        const activeKeys = this.activeKeys.get(pitch.midi);
-        const activeKey = activeKeys?.[activeKeys.length - 1];
-        const color = activeKey?.color;
-        graphic.clear();
-
-        if (pitch.isNatural) {
-            return this.createNaturalKeyGraphic(graphic, keyElement, color);
-        }
-
-        return this.createAccidentalKeyGraphic(graphic, keyElement, color);
-    }
-
-    private createNaturalKeyGraphic(graphic: Graphics, keyElement: KeyElement, color?: string) {
-        const radius = this.getScaledRadius(keyElement, KEY_SHAPE.NATURAL_RADIUS, 0.12, 0.04);
-        const shadowDepth = this.getScaledLength(
-            KEY_SHAPE.NATURAL_SHADOW_DEPTH,
-            keyElement.height,
-            0.03,
-        );
-
-        // Bottom shadow for depth
-        graphic
-            .roundRect(
-                keyElement.x,
-                shadowDepth,
-                keyElement.width,
-                keyElement.height,
-                radius
-            )
-            .fill(PianoTheme.natural.shadow);
-
-        // Main key body with gradient for realistic appearance
-        const baseColor = color ?? PianoTheme.natural.defaultBase;
-        const naturalGradient = this.getOrCreateNaturalGradient(baseColor, Boolean(color));
-
-        graphic
-            .roundRect(keyElement.x, 0, keyElement.width, keyElement.height, radius)
-            .fill(naturalGradient);
-
-        // Border
-        graphic
-            .roundRect(keyElement.x, 0, keyElement.width, keyElement.height, radius)
-            .stroke({ width: 1, color: PianoTheme.natural.border });
-
-        return graphic;
-    }
-
-    private createAccidentalKeyGraphic(graphic: Graphics, keyElement: KeyElement, color?: string) {
-        const radius = this.getScaledRadius(keyElement, KEY_SHAPE.ACCIDENTAL_RADIUS, 0.16, 0.045);
-        const shadowDepth = this.getScaledLength(
-            KEY_SHAPE.ACCIDENTAL_SHADOW_DEPTH,
-            keyElement.height,
-            0.04,
-        );
-        const maxShadowMargin = color
-            ? KEY_SHAPE.ACCIDENTAL_ACTIVE_MARGIN
-            : KEY_SHAPE.ACCIDENTAL_IDLE_MARGIN;
-        const shadowMargin = Math.min(
-            maxShadowMargin,
-            Math.max(0.5, keyElement.width * 0.12, keyElement.height * 0.015),
-            keyElement.width / 2,
-        );
-        const surfaceY = this.getScaledLength(
-            KEY_SHAPE.ACCIDENTAL_SURFACE_Y,
-            keyElement.height,
-            0.03,
-        );
-        const surfaceHeight = color
-            ? Math.max(0, keyElement.height - shadowMargin * 2)
-            : keyElement.height * 0.9;
-
-        // Deep bottom shadow for realistic depth
-        graphic
-            .roundRect(
-                keyElement.x - 1,
-                shadowDepth,
-                keyElement.width + 2,
-                keyElement.height + 2,
-                radius
-            )
-            .fill(PianoTheme.accidental.deepShadow);
-
-        // Secondary shadow layer
-        graphic
-            .roundRect(
-                keyElement.x,
-                shadowDepth - 2,
-                keyElement.width,
-                keyElement.height,
-                radius
-            )
-            .fill(PianoTheme.accidental.secondaryShadow);
-
-        // Main key body with gradient-like effect
-        graphic
-            .roundRect(keyElement.x, 0, keyElement.width, keyElement.height, radius)
-            .fill(PianoTheme.accidental.mainBody);
-
-        // Glossy surface with smooth gradient
-        const surfaceColor = color ?? PianoTheme.accidental.defaultSurface;
-        const surfaceWidth = Math.max(0, keyElement.width - shadowMargin * 2);
-        const surfaceX = keyElement.x + shadowMargin;
-
-        // Get cached gradient to prevent memory leaks
-        const gradient = this.getOrCreateGradient(surfaceColor);
-
-        graphic
-            .roundRect(
-                surfaceX,
-                surfaceY,
-                surfaceWidth,
-                surfaceHeight,
-                radius,
-            )
-            .fill(gradient);
-
-        // Very subtle side bevels for 3D effect
-        const bevelSize = 1;
-        // Left bevel (very subtle)
-        graphic
-            .roundRect(
-                keyElement.x + shadowMargin,
-                surfaceY + 1,
-                bevelSize,
-                surfaceHeight * 0.5,
-                0,
-            )
-            .fill(color ? adjustColor(color, 0.1) : PianoTheme.accidental.leftBevel);
-
-        // Right bevel (even more subtle)
-        graphic
-            .roundRect(
-                keyElement.x + keyElement.width - shadowMargin - bevelSize,
-                surfaceY + 1,
-                bevelSize,
-                surfaceHeight * 0.5,
-                0,
-            )
-            .fill(color ? adjustColor(color, 0.05) : PianoTheme.accidental.rightBevel);
-
-        return graphic;
-    }
-
-    private getScaledRadius(
-        keyElement: KeyElement,
-        maxRadius: number,
-        widthRatio: number,
-        heightRatio: number,
-    ): number {
-        if (keyElement.width <= 0 || keyElement.height <= 0) {
-            return 0;
-        }
-
-        return Math.min(maxRadius, keyElement.width * widthRatio, keyElement.height * heightRatio);
-    }
-
-    private getScaledLength(maxLength: number, referenceLength: number, ratio: number): number {
-        if (referenceLength <= 0) {
-            return 0;
-        }
-
-        return Math.min(maxLength, referenceLength * ratio);
-    }
-
-    private getOrCreateGradient(baseColor: string): FillGradient {
-        // Create a cache key based on the base color
-        const cacheKey = `accidental-${baseColor}`;
-
-        // Return existing gradient if already cached
-        if (this.gradientCache.has(cacheKey)) {
-            return this.gradientCache.get(cacheKey)!;
-        }
-
-        // Create new gradient with proper colors
-        const topColor = adjustColor(baseColor, 0.12);
-        const midColor = adjustColor(baseColor, 0.02);
-
-        const gradient = new FillGradient(0, 0, 0, 1);
-        gradient.addColorStop(0, topColor);      // Light at top
-        gradient.addColorStop(0.3, midColor);   // Transition
-        gradient.addColorStop(1, baseColor);    // Darker at bottom
-        gradient.buildLinearGradient();
-
-        // Cache the gradient for reuse
-        this.gradientCache.set(cacheKey, gradient);
-        return gradient;
-    }
-
-    private getOrCreateNaturalGradient(baseColor: string, isActive: boolean): FillGradient {
-        // Create a cache key based on the base color
-        const cacheKey = `natural-${baseColor}-${isActive ? 'active' : 'idle'}`;
-
-        // Return existing gradient if already cached
-        if (this.gradientCache.has(cacheKey)) {
-            return this.gradientCache.get(cacheKey)!;
-        }
-
-        // Create subtle gradient for natural keys (top-to-bottom)
-        const topColor = adjustColor(baseColor, isActive ? 0.28 : 0.22);
-        const midColor = baseColor;                               // Base color in middle
-        const bottomColor = adjustColor(baseColor, isActive ? -0.16 : -0.18);
-
-        const gradient = new FillGradient(0, 0, 0, 1);
-        gradient.addColorStop(0, topColor);       // Bright highlight at top
-        if (isActive) {
-            gradient.addColorStop(0.08, adjustColor(baseColor, 0.45));
-        }
-        gradient.addColorStop(0.38, midColor);    // Base color
-        if (!isActive) {
-            gradient.addColorStop(0.78, adjustColor(baseColor, -0.08));
-        }
-        gradient.addColorStop(1, bottomColor);   // Subtle shadow at bottom
-        gradient.buildLinearGradient();
-
-        // Cache the gradient for reuse
-        this.gradientCache.set(cacheKey, gradient);
-        return gradient;
-    }
-
-    private drawKeyboardFrame(): void {
-        const firstKey = this.layout.getKeyElement(MIDI_RANGE.MIN);
-        const lastKey = this.layout.getKeyElement(MIDI_RANGE.MAX);
-        const width = lastKey.x + lastKey.width - firstKey.x;
-        const frameHeight = this.getScaledLength(
-            KEY_SHAPE.FRAME_HEIGHT,
-            this.layout.getPianoHeight(),
-            0.032,
-        );
-        const bottomY = this.layout.getPianoHeight() - frameHeight / 2;
-
-        this.frameGraphics.clear();
-        this.frameGraphics.rect(firstKey.x, bottomY, width, frameHeight).fill({
-            color: '#05070a',
-            alpha: 0.86,
-        });
-    }
-
-    public destroy(): void {
-        // Clean up cached gradients to prevent memory leaks
-        this.gradientCache.forEach(gradient => {
-            if (gradient.texture) {
-                gradient.texture.destroy();
-            }
-        });
-        this.gradientCache.clear();
-        this.controller?.dispose();
-        this.frameGraphics.destroy();
-        this.container.destroy({ children: true });
-        this.stage?.destroy();
-    }
+    this.resize();
+
+    this.input = new KeyboardInput({
+      canvas: this.canvas,
+      layout: this.layout,
+      onKeyDown: (midi) => this.config.onKeyDown?.(midi),
+      onKeyUp: (midi) => this.config.onKeyUp?.(midi),
+    });
+
+    this.observer = new ResizeObserver(() => this.resize());
+    this.observer.observe(config.container);
+
+    const loop = () => {
+      if (this.destroyed) {
+        return;
+      }
+      this.render();
+      this.frames += 1;
+      this.raf = requestAnimationFrame(loop);
+    };
+    this.raf = requestAnimationFrame(loop);
+  }
+
+  /** frames rendered so far, for the benchmark harness */
+  public get frameCount(): number {
+    return this.frames;
+  }
+
+  public get instanceCount(): number {
+    return this.renderer.instances;
+  }
+
+  public keyDown(midi: number, color = '#5dadec', identifier?: string): void {
+    this.active.press(midi, color, identifier);
+  }
+
+  public keyUp(midi: number, identifier?: string): void {
+    this.active.release(midi, identifier);
+  }
+
+  public setRange(centerMidi: number, visibleKeys: number): void {
+    this.layout.setRange(centerMidi, visibleKeys);
+  }
+
+  /**
+   * No-op. The pixi renderer cached drawn graphics and needed to be told they
+   * were stale; this one rebuilds its instance buffer from state every frame.
+   * Kept so hosts written against the old API keep compiling.
+   */
+  public forceRedraw(): void {}
+
+  public resize(): void {
+    this.width = this.config.container.clientWidth;
+    this.height = this.config.container.clientHeight;
+    this.layout.setWidth(this.width);
+    this.layout.setHeight(this.height);
+    this.layout.updatePianoHeight(this.height);
+    this.renderer.resize(this.width, this.height);
+  }
+
+  public render(): void {
+    const renderer = this.renderer;
+
+    renderer.begin(this.config.backgroundColor);
+    drawKeyboard(renderer, this.layout, this.active);
+    renderer.flush();
+  }
+
+  public destroy(): void {
+    this.destroyed = true;
+    cancelAnimationFrame(this.raf);
+    this.observer.disconnect();
+    this.input.dispose();
+    this.renderer.destroy();
+    this.canvas.remove();
+  }
 }

@@ -21,4 +21,4 @@ export type { Range } from './Layout';
 
 export { default as Pitch } from './Pitch';
 
-export type { MountTarget } from './lib/Stage';
+export { isWebGL2Supported, WebGL2UnavailableError } from './lib/webgl';

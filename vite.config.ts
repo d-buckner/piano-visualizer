@@ -18,8 +18,6 @@ export default defineConfig({
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         keyboard: fileURLToPath(new URL('./keyboard.html', import.meta.url)),
-        keyboardGl: fileURLToPath(new URL('./keyboard-gl.html', import.meta.url)),
-        fullGl: fileURLToPath(new URL('./full-gl.html', import.meta.url)),
       },
       output: {
         entryFileNames: '[name].js',

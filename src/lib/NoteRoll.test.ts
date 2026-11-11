@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import GLPianoRoll from './GLPianoRoll';
+import NoteRoll from './NoteRoll';
 import Layout from '../Layout';
 import type QuadRenderer from './QuadRenderer';
 
@@ -17,10 +17,10 @@ function makeLayout() {
   return new Layout({ width: 900, height: 600, pianoHeight: 200 });
 }
 
-describe('GLPianoRoll', () => {
+describe('NoteRoll', () => {
   it('draws a glow stack under each block', () => {
     const layout = makeLayout();
-    const roll = new GLPianoRoll(layout);
+    const roll = new NoteRoll(layout);
     const renderer = makeRenderer();
 
     roll.startNote(60, '#62d982');
@@ -34,7 +34,7 @@ describe('GLPianoRoll', () => {
 
   it('scrolls and removes a block once it leaves the roll', () => {
     const layout = makeLayout();
-    const roll = new GLPianoRoll(layout);
+    const roll = new NoteRoll(layout);
     const renderer = makeRenderer();
 
     roll.startNote(60, '#62d982');
@@ -51,7 +51,7 @@ describe('GLPianoRoll', () => {
 
   it('keeps blocks apart by identifier', () => {
     const layout = makeLayout();
-    const roll = new GLPianoRoll(layout);
+    const roll = new NoteRoll(layout);
 
     roll.startNote(60, '#62d982', 'a');
     roll.startNote(60, '#4d91ff', 'b');
@@ -64,7 +64,7 @@ describe('GLPianoRoll', () => {
 
   it('reports screen-space rects for the particle field', () => {
     const layout = makeLayout();
-    const roll = new GLPianoRoll(layout);
+    const roll = new NoteRoll(layout);
     const renderer = makeRenderer();
 
     roll.startNote(60, '#62d982');
@@ -79,7 +79,7 @@ describe('GLPianoRoll', () => {
 
   it('culls blocks that have scrolled out of the roll', () => {
     const layout = makeLayout();
-    const roll = new GLPianoRoll(layout);
+    const roll = new NoteRoll(layout);
     const renderer = makeRenderer();
 
     roll.startNote(60, '#62d982');

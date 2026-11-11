@@ -1,11 +1,8 @@
 /**
- * demo: the keyboard on its own, in the shape p2piano sheet-music mode needs it.
- *
- * a score area above, a compact live input strip below. no piano roll, no
- * falling notes, no ambient particles — nothing is constructed that is not on
- * screen. run it with `npm run dev` and open /keyboard.html.
+ * demo: the keyboard strip on its own, the shape p2piano sheet-music mode needs.
+ * open /keyboard.html.
  */
-import Piano from './keyboard';
+import Piano from './Piano';
 
 const COLORS = ['#4d91ff', '#62d982', '#bd4ed8', '#f2c14e'];
 
@@ -20,11 +17,9 @@ score.style.cssText = `
 score.innerHTML = `
   <div>
     <div style="letter-spacing:.18em;text-transform:uppercase;font-size:11px;color:#3f4753">
-      sheet music mode
+      keyboard only
     </div>
-    <div style="margin-top:10px">
-      the strip below is the whole package: <code>piano-visualizer/keyboard</code>
-    </div>
+    <div style="margin-top:10px">no roll, no particles: <code>piano-visualizer/keyboard</code></div>
     <div id="readout" style="margin-top:14px;color:#8b93a1;min-height:1.6em">&nbsp;</div>
   </div>
 `;
@@ -36,10 +31,6 @@ layout.append(score, strip);
 document.body.append(layout);
 
 const readout = score.querySelector('#readout') as HTMLElement | null;
-let pressed = 0;
-
-// `?stress=1` renders all 88 keys with a rotating cluster held down, which is
-// what scripts/compare-backends.mjs measures against the GL prototype.
 const stress = new URLSearchParams(window.location.search).get('stress') === '1';
 
 const keyboard = new Piano({
@@ -47,30 +38,22 @@ const keyboard = new Piano({
   backgroundColor: '#101318',
   range: { centerMidi: 60, visibleKeys: stress ? 52 : 14 },
   onKeyDown: (midi) => {
-    const color = COLORS[pressed % COLORS.length] as string;
-    pressed += 1;
-    keyboard.keyDown(midi, color);
+    keyboard.keyDown(midi, COLORS[0]);
     if (readout) {
-      readout.textContent = `key ${midi} pressed (pointer input is owned by the keyboard)`;
+      readout.textContent = `key ${midi} pressed`;
     }
   },
-  onKeyUp: (midi) => {
-    keyboard.keyUp(midi);
-    if (readout) {
-      readout.textContent = `key ${midi} released`;
-    }
-  },
+  onKeyUp: (midi) => keyboard.keyUp(midi),
 });
 
-// a small figure so the strip is visibly alive without any input
 const FIGURE = [60, 64, 67, 71, 72, 71, 67, 64];
 let step = 0;
 
 window.setInterval(() => {
   const midi = FIGURE[step % FIGURE.length] as number;
+  const color = COLORS[Math.floor(step / FIGURE.length) % COLORS.length] as string;
   step += 1;
 
-  const color = COLORS[Math.floor(step / FIGURE.length) % COLORS.length] as string;
   keyboard.keyDown(midi, color);
   window.setTimeout(() => keyboard.keyUp(midi), 260);
 }, 420);
@@ -92,8 +75,8 @@ if (stress) {
 
 declare global {
   interface Window {
-    __pianoVisualizerKeyboard?: Piano;
+    __pianoVisualizerPiano?: Piano;
   }
 }
 
-window.__pianoVisualizerKeyboard = keyboard;
+window.__pianoVisualizerPiano = keyboard;

@@ -1,18 +1,18 @@
 import { expect, test } from '@playwright/test';
 
 type GLWindow = Window & {
-  __pianoVisualizerGL?: { heldNotes: number[] };
+  __pianoVisualizerDemo?: { heldNotes: number[] };
 };
 
 function heldNotes(page: import('@playwright/test').Page) {
-  return page.evaluate(() => (window as GLWindow).__pianoVisualizerGL?.heldNotes ?? null);
+  return page.evaluate(() => (window as GLWindow).__pianoVisualizerDemo?.heldNotes ?? null);
 }
 
 test('two fingers hold two notes at once', async ({ browser }) => {
   const viewport = { width: 1000, height: 700 };
   const context = await browser.newContext({ viewport, hasTouch: true });
   const page = await context.newPage();
-  await page.goto('/full-gl.html');
+  await page.goto('/');
   await page.waitForTimeout(900);
 
   const client = await context.newCDPSession(page);
@@ -51,7 +51,7 @@ test('a dragged finger glides across keys', async ({ browser }) => {
   const viewport = { width: 1000, height: 700 };
   const context = await browser.newContext({ viewport, hasTouch: true });
   const page = await context.newPage();
-  await page.goto('/full-gl.html');
+  await page.goto('/');
   await page.waitForTimeout(900);
 
   const client = await context.newCDPSession(page);

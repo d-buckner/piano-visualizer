@@ -10,7 +10,7 @@
  * geometry, motion and the glow stack match `PianoRoll` exactly.
  */
 import Layout from '../Layout';
-import type { ActiveBlock } from '../lib/ActiveBlock';
+import type { ActiveBlock } from './ActiveBlock';
 import type QuadRenderer from './QuadRenderer';
 import { adjustColor, parseColor, type RGBA } from './color';
 
@@ -49,7 +49,7 @@ type Placed = {
   height: number;
 };
 
-export default class GLPianoRoll {
+export default class NoteRoll {
   private readonly blocks = new Map<number, Block[]>();
   private readonly palettes = new Map<string, Palette>();
   private readonly placed: Placed[] = [];

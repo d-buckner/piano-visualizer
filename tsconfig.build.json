@@ -17,9 +17,6 @@
     "src/**/*.test.ts",
     "src/demo.ts",
     "src/demo-keyboard.ts",
-    "src/demo-keyboard-gl.ts",
-    "src/demo-full-gl.ts",
-    "src/gl/**",
     "src/vite-env.d.ts"
   ]
 }

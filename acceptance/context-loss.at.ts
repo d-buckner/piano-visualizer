@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
 
 type GLWindow = Window & {
-  __pianoVisualizerGL?: { contextLost: boolean; instanceCount: number };
+  __pianoVisualizerDemo?: { contextLost: boolean; instanceCount: number };
 };
 
 function probe(page: import('@playwright/test').Page) {
   return page.evaluate(() => {
-    const viz = (window as GLWindow).__pianoVisualizerGL;
+    const viz = (window as GLWindow).__pianoVisualizerDemo;
     return {
       contextLost: viz?.contextLost ?? null,
       instances: viz?.instanceCount ?? null,
@@ -35,7 +35,7 @@ function setContext(page: import('@playwright/test').Page, action: 'lose' | 'res
 
 test('recovers from a lost WebGL context', async ({ page }) => {
   await page.setViewportSize({ width: 1000, height: 700 });
-  await page.goto('/full-gl.html?stress=1');
+  await page.goto('/?stress=1');
   await page.waitForTimeout(1200);
 
   const clip = { x: 0, y: 0, width: 1000, height: 460 };

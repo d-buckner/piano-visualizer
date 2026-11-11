@@ -5,7 +5,7 @@
  * into circles, so the ambient background looks identical whichever renderer a
  * consumer ships.
  */
-import ParticleField, { type BlockRect, type ParticleDraw } from '../lib/particleField';
+import ParticleField, { type BlockRect, type ParticleDraw } from './particleField';
 import type QuadRenderer from './QuadRenderer';
 import { desaturateColor, parseColor, type RGBA } from './color';
 
@@ -23,7 +23,7 @@ type Frame = {
   blocks: BlockRect[];
 };
 
-export default class GLParticles {
+export default class Particles {
   private readonly field: ParticleField;
   /** reused every particle, avoids 120 tuple allocations per frame */
   private readonly rgba: [number, number, number, number] = [0, 0, 0, 1];

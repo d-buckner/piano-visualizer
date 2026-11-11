@@ -32,10 +32,15 @@ export function keyRect(layout: Layout, midi: number) {
   };
 }
 
+/** anything able to answer which colour a key is showing - a Map or a KeyState */
+export type ActiveKeyLookup = {
+  get(midi: number): string | undefined;
+};
+
 export function drawKeyboard(
   renderer: QuadRenderer,
   layout: Layout,
-  active: Map<number, string>,
+  active: ActiveKeyLookup,
 ): void {
   for (let midi = MIDI_MIN; midi <= MIDI_MAX; midi++) {
     const pitch = new Pitch(midi);
