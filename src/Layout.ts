@@ -53,7 +53,7 @@ type Config = {
   pianoHeight: number;
 };
 
-type Range = {
+export type Range = {
   centerMidi: number;
   visibleKeys: number;
 };

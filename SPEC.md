@@ -10,11 +10,12 @@ unless a specific modularization task says otherwise.
 
 ## Product Direction
 
-The package should become a modular piano visualization toolkit rather than a
-single hard-wired keyboard-plus-piano-roll screen. The immediate downstream
-need is p2piano sheet-music mode: it needs to embed a compact live keyboard
-below an OpenSheetMusicDisplay score without constructing or rendering the
-piano-roll timeline.
+The package is a modular piano visualization toolkit rather than a single
+hard-wired keyboard-plus-piano-roll screen. The immediate downstream need is
+p2piano sheet-music mode: it embeds a compact live keyboard below an
+OpenSheetMusicDisplay score without constructing or rendering the piano-roll
+timeline. Longer term this is meant to be the one-stop shop for piano
+experiences, with sound available as an opt-in layer.
 
 The current visual polish work remains valid, but any structural refactor should
 preserve a clean split between reusable rendering primitives and composed
@@ -22,14 +23,30 @@ experiences.
 
 ## Module Boundaries
 
-The package should expose composable modules for:
+Shipped as of 2.0.0. Each boundary is a real entry point, and `npm run
+check:shaking` fails the build if importing one drags another along.
 
-- Keyboard rendering and pointer input.
-- Active-note highlighting.
-- MIDI note range and viewport control.
-- Shared sizing and note/key alignment.
-- Piano-roll timeline rendering.
-- Full visualizer composition that combines keyboard plus piano roll.
+| Boundary                                | Entry point                  |
+| --------------------------------------- | ---------------------------- |
+| Keyboard rendering and pointer input    | `piano-visualizer/keyboard`  |
+| Piano-roll timeline rendering           | `piano-visualizer/piano-roll`|
+| Shared sizing, alignment, stage host    | `piano-visualizer/core`      |
+| Optional sound (d-piano adapter)        | `piano-visualizer/audio`     |
+| Full composition (keyboard + roll)      | `piano-visualizer`           |
+
+Active-note highlighting, MIDI note range and viewport control, and note/key
+alignment live in the keyboard, roll, and `core` respectively, and are shared by
+both the standalone and composed paths.
+
+Packaging rules that make the split real rather than aspirational:
+
+- `tsc` emits one file per module; there is no pre-rolled library bundle.
+- `sideEffects: false`, so the root barrel shakes as well as the subpaths.
+- `pixi.js` is a peer dependency, never inlined.
+- `d-piano` and `tone` are optional peers, reachable only through `./audio`.
+- A module mounted on an `HTMLElement` owns its own `Application`, resize
+  observer, and ticker via `lib/Stage`; mounted on a `Container` it owns nothing
+  and joins the host's scene graph.
 
 The keyboard module must be independently usable in compact or docked contexts,
 including a lower input strip under a sheet-music view. Consumers should be able

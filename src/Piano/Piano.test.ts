@@ -6,6 +6,7 @@ vi.mock('pixi.js', () => ({
   Container: vi.fn().mockImplementation(() => ({
     addChild: vi.fn(),
     removeChild: vi.fn(),
+    destroy: vi.fn(),
     y: 0,
     filters: [],
   })),
@@ -406,9 +407,9 @@ describe('Piano', () => {
       piano.forceRedraw();
       piano.render();
 
-      const graphics = piano['graphics'][39]; // C4 is key 39
+      const graphics = piano['graphics'][39] as any; // C4 is key 39
       const bodyCalls = graphics.roundRect.mock.calls.filter(
-        ([, y, width, height]) => y === 0 && width === 12 && height === 40,
+        ([, y, width, height]: unknown[]) => y === 0 && width === 12 && height === 40,
       );
 
       expect(bodyCalls[0][4]).toBeCloseTo(1.44);
@@ -424,9 +425,9 @@ describe('Piano', () => {
       piano.forceRedraw();
       piano.render();
 
-      const graphics = piano['graphics'][40]; // C#4 is key 40
+      const graphics = piano['graphics'][40] as any; // C#4 is key 40
       const bodyCalls = graphics.roundRect.mock.calls.filter(
-        ([, y, width, height]) => y === 0 && width === 10 && height === 30,
+        ([, y, width, height]: unknown[]) => y === 0 && width === 10 && height === 30,
       );
 
       expect(bodyCalls[0][4]).toBeCloseTo(1.35);

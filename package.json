@@ -2,32 +2,76 @@
   "name": "piano-visualizer",
   "author": "d-buckner",
   "repository": "https://github.com/d-buckner/piano-visualizer",
-  "version": "1.2.1",
+  "version": "2.0.0",
   "type": "module",
-  "main": "dist/index.js",
+  "description": "Composable piano experiences: keyboard, piano roll, or both. Optional d-piano sound.",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./keyboard": {
+      "types": "./dist/keyboard.d.ts",
+      "default": "./dist/keyboard.js"
+    },
+    "./piano-roll": {
+      "types": "./dist/piano-roll.d.ts",
+      "default": "./dist/piano-roll.js"
+    },
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "default": "./dist/core.js"
+    },
+    "./audio": {
+      "types": "./dist/audio.d.ts",
+      "default": "./dist/audio.js"
+    },
+    "./package.json": "./package.json"
+  },
   "files": [
     "dist/",
     "README.md"
   ],
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "build:demo": "vite build --mode development",
+    "clean": "node scripts/clean.mjs",
+    "build": "npm run clean && tsc -p tsconfig.build.json",
+    "build:demo": "vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "check:shaking": "node scripts/check-tree-shake.mjs",
+    "compare:backends": "node scripts/compare-backends.mjs",
     "test": "vitest",
+    "test:run": "vitest run",
     "test:acceptance": "playwright test",
+    "prepublishOnly": "npm run typecheck && npm run build && npm run check:shaking",
     "release": "npm run build && npm publish"
+  },
+  "peerDependencies": {
+    "d-piano": "^1.2.0",
+    "pixi.js": "^8.6.4",
+    "tone": "^15.1.22"
+  },
+  "peerDependenciesMeta": {
+    "d-piano": {
+      "optional": true
+    },
+    "tone": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
-    "@rollup/plugin-terser": "^0.4.4",
+    "d-piano": "^1.2.0",
+    "esbuild": "^0.25.0",
     "happy-dom": "^18.0.1",
-    "rollup-plugin-terser": "^7.0.2",
+    "pixi.js": "^8.6.4",
+    "tone": "^15.1.22",
     "typescript": "^5.8.3",
     "vite": "^7.0.0",
-    "vite-plugin-dts": "^4.5.4",
     "vitest": "^3.2.4"
-  },
-  "dependencies": {
-    "pixi.js": "^8.6.4"
   }
 }

@@ -4,11 +4,12 @@
  * supports multiple colors per key and optional identifiers for complex scenarios.
  */
 import { type ColorSource, Container, Graphics, FillGradient } from 'pixi.js';
-import Layout from '../Layout';
+import Layout, { type Range } from '../Layout';
 import Pitch from '../Pitch';
 import PianoController from './PianoController';
 import { PianoTheme } from './PianoTheme';
 import { adjustColor } from '../lib/color';
+import { type MountTarget, type Mounted, mount } from '../lib/Stage';
 
 const MIDI_RANGE = {
     MIN: 21, // A0
@@ -27,12 +28,22 @@ const KEY_SHAPE = {
     FRAME_HEIGHT: 8,
 } as const;
 
-type Config = {
-    container: Container;
+export type PianoConfig = {
+    /**
+     * an HTMLElement mounts the keyboard standalone (it gets its own pixi
+     * application, resize handling and ticker). a pixi Container embeds it in a
+     * scene the consumer already renders.
+     */
+    container: MountTarget;
     backgroundColor?: ColorSource;
-    layout: Layout;
-    onKeyDown: (midi: number) => void;
-    onKeyUp: (midi: number) => void;
+    /** required when container is a pixi Container */
+    layout?: Layout;
+    /** keyboard height for a standalone mount, 'fill' takes the whole element */
+    pianoHeight?: number | 'fill';
+    /** initial viewport, only applied to a layout this module owns */
+    range?: Range;
+    onKeyDown?: (midi: number) => void;
+    onKeyUp?: (midi: number) => void;
 };
 
 type ActiveKey = {
@@ -48,34 +59,85 @@ type KeyElement = {
 }
 
 export default class Piano {
-    private config: Config;
     private container: Container;
     private naturalContainer: Container;
     private accidentalContainer: Container;
     private frameGraphics: Graphics;
     private graphics: Graphics[];
     private layout: Layout;
+    private stage: Mounted['stage'];
+    private controller: PianoController;
     private activeKeys: Map<number, ActiveKey[]> = new Map();
     private gradientCache: Map<string, FillGradient> = new Map();
     private dirtyKeys: Set<number> = new Set();
     private needsRedraw = true; // Initial render needed
 
-    constructor(config: Config) {
-        this.config = config;
+    constructor(config: PianoConfig) {
         this.container = new Container();
         this.naturalContainer = new Container();
         this.accidentalContainer = new Container();
         this.frameGraphics = new Graphics();
-        this.layout = config.layout;
-        this.graphics = Array.from({ length: MIDI_RANGE.TOTAL_KEYS }, () => new Graphics());
-        this.initializeKeyContainers();
-        new PianoController({
-            graphics: this.graphics,
-            onKeyDown: this.config.onKeyDown,
-            onKeyUp: this.config.onKeyUp,
-            layout: this.config.layout,
+
+        const mounted: Mounted = mount({
+            name: 'Piano',
+            container: config.container,
+            layout: config.layout,
+            pianoHeight: config.pianoHeight ?? 'fill',
+            backgroundColor: config.backgroundColor,
+            onTick: () => this.render(),
+            onResize: () => this.forceRedraw(),
         });
+        this.layout = mounted.layout;
+        this.stage = mounted.stage;
+
+        this.graphics = Array.from({ length: MIDI_RANGE.TOTAL_KEYS }, () => new Graphics());
+        this.initializeKeyContainers(mounted.parent);
+        this.controller = new PianoController({
+            graphics: this.graphics,
+            onKeyDown: (midi) => config.onKeyDown?.(midi),
+            onKeyUp: (midi) => config.onKeyUp?.(midi),
+            layout: this.layout,
+        });
+
+        if (config.range && !config.layout) {
+            this.setRange(config.range.centerMidi, config.range.visibleKeys);
+        }
+
         this.render();
+    }
+
+    public setRange(centerMidi: number, visibleKeys: number): void {
+        this.layout.setRange(centerMidi, visibleKeys);
+        this.forceRedraw();
+    }
+
+    public getRange(): Range {
+        return this.layout.getRange();
+    }
+
+    public setCenterMidi(midi: number): void {
+        this.setRange(midi, this.layout.getVisibleKeys());
+    }
+
+    public getCenterMidi(): number {
+        return this.layout.getCenterMidi();
+    }
+
+    public setVisibleKeys(visibleKeys: number): void {
+        this.setRange(this.layout.getCenterMidi(), visibleKeys);
+    }
+
+    public getVisibleKeys(): number {
+        return this.layout.getVisibleKeys();
+    }
+
+    public setWidthFactor(widthFactor: number): void {
+        this.layout.setWidthFactor(widthFactor);
+        this.forceRedraw();
+    }
+
+    public getWidthFactor(): number {
+        return this.layout.getWidthFactor();
     }
 
     public keyDown(midi: number, color: string, identifier?: string) {
@@ -138,7 +200,14 @@ export default class Piano {
 
         const pianoY = this.layout.getPianoY();
         this.container.y = pianoY;
-        
+
+        // a standalone keyboard owns its own transform, so it has to carry the
+        // horizontal pan that setRange computes. an embedded one must not, or
+        // the host's own panning container would apply it twice.
+        if (this.stage) {
+            this.container.x = this.layout.getX();
+        }
+
         this.needsRedraw = false;
     }
 
@@ -146,7 +215,7 @@ export default class Piano {
         this.needsRedraw = true;
     }
 
-    private initializeKeyContainers(): void {
+    private initializeKeyContainers(parent: Container): void {
         for (let key = 0; key < MIDI_RANGE.TOTAL_KEYS; key++) {
             const midi = key + MIDI_RANGE.MIN;
             const pitch = new Pitch(midi);
@@ -161,7 +230,7 @@ export default class Piano {
         this.container.addChild(this.naturalContainer);
         this.container.addChild(this.accidentalContainer);
         this.container.addChild(this.frameGraphics);
-        this.config.container.addChild(this.container);
+        parent.addChild(this.container);
     }
 
     private markAllKeysDirty(): void {
@@ -430,6 +499,9 @@ export default class Piano {
             }
         });
         this.gradientCache.clear();
+        this.controller?.dispose();
         this.frameGraphics.destroy();
+        this.container.destroy({ children: true });
+        this.stage?.destroy();
     }
 }

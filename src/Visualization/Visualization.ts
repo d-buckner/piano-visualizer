@@ -31,7 +31,7 @@ const VIZ_CONFIG = {
 
 type KeyHandler = (midi: number) => undefined | string;
 
-type Config = {
+export type VisualizationConfig = {
   container: HTMLElement;
   backgroundColor?: ColorSource;
   onKeyUp?: KeyHandler;
@@ -49,7 +49,7 @@ type PerfProbe = {
 
 export default class Visualization {
   private app: Application;
-  private config: Config;
+  private config: VisualizationConfig;
   private piano: Piano;
   private pianoRoll: PianoRoll;
   private layout: Layout;
@@ -62,7 +62,7 @@ export default class Visualization {
   private gestureAnimator: GestureAnimator;
   private controller: VisualizationController | null = null;
 
-  constructor(config: Config) {
+  constructor(config: VisualizationConfig) {
     this.config = config;
     this.app = new Application();
     this.htmlContainer = document.createElement('div');

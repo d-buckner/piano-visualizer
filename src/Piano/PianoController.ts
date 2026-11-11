@@ -75,6 +75,23 @@ export default class PianoController {
     });
   }
 
+  /**
+   * detach every key handler. standalone modules call this on destroy so a
+   * discarded keyboard cannot keep firing callbacks into a dead app.
+   */
+  public dispose(): void {
+    this.options.graphics.forEach((graphic) => {
+      const removable = graphic as unknown as { removeAllListeners?: () => void };
+      if (typeof removable.removeAllListeners === 'function') {
+        removable.removeAllListeners();
+      }
+    });
+
+    this.touchMidiById.clear();
+    this.mouseMidi = null;
+    this.isMouseDown = false;
+  }
+
   private isEventOutsidePiano(e: FPE) {
     return e.screenY > this.layout.getHeight() // below piano
       || e.screenY < this.layout.getPianoY()   // above piano

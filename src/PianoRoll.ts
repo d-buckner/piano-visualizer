@@ -3,22 +3,48 @@
  * animates blocks over time and cleans up off-screen graphics.
  * uses rounded rectangles with configurable colors and minimum heights.
  */
-import { Container, FillGradient, Graphics, type Ticker } from 'pixi.js';
-import Layout from './Layout';
+import { type ColorSource, Container, FillGradient, Graphics, type Ticker } from 'pixi.js';
+import Layout, { type Range } from './Layout';
 import GraphicsPool from './lib/GraphicsPool';
 import { adjustColor } from './lib/color';
 import type { ActiveBlock } from './lib/ActiveBlock';
+import { type MountTarget, type Mounted, mount } from './lib/Stage';
 
 const MIN_BLOCK_HEIGHT = 8;
 const ANIMATION_SPEED_FACTOR = 0.2;
-const PARTIAL_PIXEL_SIZE = 1 / window.devicePixelRatio;
 const GLOW_EXPANSION = 6;
 const GLOW_ALPHA = 0.32;
 const GLOW_STEPS = 4;
 
-type Config = {
-  container: Container;
-  layout: Layout;
+/**
+ * read lazily rather than at import time: this module must be safe to load in a
+ * worker, during SSR, or in a bundler that evaluates it before a DOM exists.
+ */
+let partialPixelSize: number | null = null;
+function getPartialPixelSize(): number {
+  if (partialPixelSize === null) {
+    const ratio = globalThis.window?.devicePixelRatio ?? 1;
+    partialPixelSize = 1 / (ratio > 0 ? ratio : 1);
+  }
+
+  return partialPixelSize;
+}
+
+export type PianoRollConfig = {
+  /**
+   * an HTMLElement mounts the roll standalone (own pixi application, resize
+   * handling and ticker). a pixi Container embeds it in an existing scene.
+   */
+  container: MountTarget;
+  /** required when container is a pixi Container */
+  layout?: Layout;
+  /**
+   * height reserved for a keyboard below the roll. 0 (the default for a
+   * standalone roll) makes the notes use the whole element.
+   */
+  pianoHeight?: number;
+  backgroundColor?: ColorSource;
+  range?: Range;
 };
 
 type Block = {
@@ -51,35 +77,88 @@ type BlockLayout = {
 const RADIUS = 5;
 
 export default class PianoRoll {
-  config: Config;
+  config: PianoRollConfig;
   container: Container;
   blocks: Map<number, Block[]> = new Map();
+  private layout: Layout;
+  private stage: Mounted['stage'];
   private rootContainer: Container;
   private glowContainer: Container;
   private graphicsPool: GraphicsPool;
   private glowGraphicsPool: GraphicsPool;
   private blockGradientCache = new Map<string, FillGradient>();
 
-  constructor(config: Config) {
+  constructor(config: PianoRollConfig) {
     this.config = config;
     this.rootContainer = new Container();
     this.glowContainer = new Container();
     this.container = new Container();
     this.graphicsPool = new GraphicsPool();
     this.glowGraphicsPool = new GraphicsPool();
+
+    const mounted: Mounted = mount({
+      name: 'PianoRoll',
+      container: config.container,
+      layout: config.layout,
+      pianoHeight: config.pianoHeight ?? 0,
+      backgroundColor: config.backgroundColor,
+      onTick: (ticker) => this.render(ticker),
+      onResize: () => this.forceRedraw(),
+    });
+    this.layout = mounted.layout;
+    this.stage = mounted.stage;
+
     this.rootContainer.addChild(this.glowContainer);
     this.rootContainer.addChild(this.container);
-    this.config.container.addChild(this.rootContainer);
+    mounted.parent.addChild(this.rootContainer);
+
+    if (config.range && !config.layout) {
+      this.setRange(config.range.centerMidi, config.range.visibleKeys);
+    }
+  }
+
+  public setRange(centerMidi: number, visibleKeys: number): void {
+    this.layout.setRange(centerMidi, visibleKeys);
+    this.forceRedraw();
+  }
+
+  public getRange(): Range {
+    return this.layout.getRange();
+  }
+
+  public setCenterMidi(midi: number): void {
+    this.setRange(midi, this.layout.getVisibleKeys());
+  }
+
+  public getCenterMidi(): number {
+    return this.layout.getCenterMidi();
+  }
+
+  public setVisibleKeys(visibleKeys: number): void {
+    this.setRange(this.layout.getCenterMidi(), visibleKeys);
+  }
+
+  public getVisibleKeys(): number {
+    return this.layout.getVisibleKeys();
+  }
+
+  public setWidthFactor(widthFactor: number): void {
+    this.layout.setWidthFactor(widthFactor);
+    this.forceRedraw();
+  }
+
+  public getWidthFactor(): number {
+    return this.layout.getWidthFactor();
   }
 
   public startNote(midi: number, color: string, identifier?: string) {
-    const element = this.config.layout.getRollElement(midi);
+    const element = this.layout.getRollElement(midi);
     const graphics = this.graphicsPool.get();
     const glowGraphics = this.glowGraphicsPool.get();
     graphics.x = element.x;
-    graphics.y = this.config.layout.getPianoRollHeight();
+    graphics.y = this.layout.getPianoRollHeight();
     glowGraphics.x = element.x - GLOW_EXPANSION;
-    glowGraphics.y = this.config.layout.getPianoRollHeight() - GLOW_EXPANSION;
+    glowGraphics.y = this.layout.getPianoRollHeight() - GLOW_EXPANSION;
     graphics.alpha = 1;
     glowGraphics.alpha = GLOW_ALPHA;
     this.updateGraphics({
@@ -135,6 +214,11 @@ export default class PianoRoll {
   }
 
   public render(ticker: Ticker) {
+    // standalone rolls own their transform; embedded ones are panned by the host
+    if (this.stage) {
+      this.rootContainer.x = this.layout.getX();
+    }
+
     this.blocks.forEach((midiBlocks) => {
       this.renderMidiBlocks(midiBlocks, ticker);
     });
@@ -144,7 +228,7 @@ export default class PianoRoll {
     containerOffsetX: number,
   ): ActiveBlock[] {
     const result: ActiveBlock[] = [];
-    const pianoRollHeight = this.config.layout.getPianoRollHeight();
+    const pianoRollHeight = this.layout.getPianoRollHeight();
 
     this.blocks.forEach((midiBlocks) => {
       for (const block of midiBlocks) {
@@ -178,6 +262,9 @@ export default class PianoRoll {
     this.glowGraphicsPool.clear();
     this.blockGradientCache.forEach((gradient) => gradient.texture.destroy());
     this.blockGradientCache.clear();
+    this.container.destroy({ children: true });
+    this.rootContainer.destroy({ children: true });
+    this.stage?.destroy();
   }
 
   private renderMidiBlocks(blocks: Block[], ticker: Ticker) {
@@ -186,7 +273,7 @@ export default class PianoRoll {
     const blockDeletionBuffer: number[] = [];
 
     blocks.forEach((block) => {
-      const pianoRollHeight = this.config.layout.getPianoRollHeight();
+      const pianoRollHeight = this.layout.getPianoRollHeight();
 
       block.y -= distance;
 
@@ -270,7 +357,7 @@ export default class PianoRoll {
       };
     }
 
-    return this.config.layout.getRollElement(block.midi);
+    return this.layout.getRollElement(block.midi);
   }
 
   private updateBlockPosition(block: Block, x: number, y: number): void {
@@ -281,10 +368,11 @@ export default class PianoRoll {
   }
 
   private hasBlockGeometryChanged(block: Block, x: number, width: number, height: number): boolean {
+    const partialPixel = getPartialPixelSize();
     return block.needsRedraw ||
-           Math.abs((block.lastX ?? 0) - x) >= PARTIAL_PIXEL_SIZE ||
-           Math.abs((block.lastWidth ?? 0) - width) >= PARTIAL_PIXEL_SIZE ||
-           Math.abs((block.lastHeight ?? 0) - height) >= PARTIAL_PIXEL_SIZE;
+           Math.abs((block.lastX ?? 0) - x) >= partialPixel ||
+           Math.abs((block.lastWidth ?? 0) - width) >= partialPixel ||
+           Math.abs((block.lastHeight ?? 0) - height) >= partialPixel;
   }
 
   private updateGraphics(options: GraphicsOptions) {
@@ -311,17 +399,13 @@ export default class PianoRoll {
       return cached;
     }
 
-    const gradient = new FillGradient({
-      type: 'linear',
-      start: { x: 0, y: 0 },
-      end: { x: 0, y: 1 },
-      textureSpace: 'local',
-      colorStops: [
-        { offset: 0, color: adjustColor(color, -0.18) },
-        { offset: 0.35, color },
-        { offset: 1, color: adjustColor(color, 0.12) },
-      ],
-    });
+    // 4-arg form on purpose: the options-object constructor landed after 8.6.4,
+    // and the surrounding try/catch in updateGraphics silently swallowed the
+    // failure, so notes fell back to a flat fill.
+    const gradient = new FillGradient(0, 0, 0, 1);
+    gradient.addColorStop(0, adjustColor(color, -0.18));
+    gradient.addColorStop(0.35, color);
+    gradient.addColorStop(1, adjustColor(color, 0.12));
     gradient.buildLinearGradient();
     this.blockGradientCache.set(color, gradient);
     return gradient;
