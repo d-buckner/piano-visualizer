@@ -98,6 +98,11 @@ export default class GLPianoRoll {
     }
   }
 
+  /**
+   * No-op; see GLKeyboard.forceRedraw.
+   */
+  public forceRedraw(): void {}
+
   public render(renderer: QuadRenderer, deltaMS: number): void {
     const panX = this.layout.getX();
     const rollHeight = this.layout.getPianoRollHeight();

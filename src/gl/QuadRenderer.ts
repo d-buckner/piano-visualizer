@@ -10,6 +10,7 @@
  * no pixi, no three. this file plus color.ts is the whole renderer.
  */
 import { type RGBA, toFloats } from './color';
+import { WebGL2UnavailableError } from './context';
 
 export type Rect = {
   x: number;
@@ -131,20 +132,33 @@ void main() {
 /** corners of a unit quad, drawn as a triangle strip */
 const CORNERS = new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]);
 
+export type QuadRendererOptions = {
+  initialCapacity?: number;
+  /** the canvas went blank; the host may want to show something */
+  onContextLost?: () => void;
+  /** GL objects were rebuilt and drawing has resumed */
+  onContextRestored?: () => void;
+};
+
 export default class QuadRenderer {
   public readonly gl: WebGL2RenderingContext;
   private canvas: HTMLCanvasElement;
-  private program: WebGLProgram;
-  private vao: WebGLVertexArrayObject;
-  private instanceBuffer: WebGLBuffer;
+  private options: QuadRendererOptions;
+  // assigned by setup(), which the constructor calls and a context restore
+  // calls again
+  private program!: WebGLProgram;
+  private vao!: WebGLVertexArrayObject;
+  private instanceBuffer!: WebGLBuffer;
+  private cornerBuffer!: WebGLBuffer;
   private data: Float32Array;
   private capacity: number;
   private count = 0;
   private resolution: [number, number] = [1, 1];
-  private uResolution: WebGLUniformLocation | null;
+  private cssSize: [number, number] = [1, 1];
+  private uResolution!: WebGLUniformLocation | null;
   private lost = false;
 
-  constructor(canvas: HTMLCanvasElement, initialCapacity = 512) {
+  constructor(canvas: HTMLCanvasElement, options: QuadRendererOptions = {}) {
     const gl = canvas.getContext('webgl2', {
       alpha: true,
       antialias: false,
@@ -152,13 +166,28 @@ export default class QuadRenderer {
       powerPreference: 'low-power',
     });
     if (!gl) {
-      throw new Error('QuadRenderer: WebGL2 is unavailable');
+      throw new WebGL2UnavailableError();
     }
 
     this.canvas = canvas;
     this.gl = gl;
-    this.data = new Float32Array(FLOATS * initialCapacity);
-    this.capacity = initialCapacity;
+    this.options = options;
+    this.capacity = options.initialCapacity ?? 512;
+    this.data = new Float32Array(FLOATS * this.capacity);
+
+    this.setup();
+
+    canvas.addEventListener('webglcontextlost', this.onLost);
+    canvas.addEventListener('webglcontextrestored', this.onRestored);
+  }
+
+  /**
+   * (re)create every GL object. A context restore invalidates programs,
+   * buffers and VAOs wholesale, so this is the same work the constructor does -
+   * without it the canvas stays blank until the page reloads.
+   */
+  private setup(): void {
+    const gl = this.gl;
 
     this.program = this.createProgram(VERTEX_SRC, FRAGMENT_SRC);
     this.uResolution = gl.getUniformLocation(this.program, 'uResolution');
@@ -166,8 +195,8 @@ export default class QuadRenderer {
     this.vao = gl.createVertexArray()!;
     gl.bindVertexArray(this.vao);
 
-    const cornerBuffer = gl.createBuffer()!;
-    gl.bindBuffer(gl.ARRAY_BUFFER, cornerBuffer);
+    this.cornerBuffer = gl.createBuffer()!;
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.cornerBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, CORNERS, gl.STATIC_DRAW);
     gl.enableVertexAttribArray(0);
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
@@ -196,12 +225,16 @@ export default class QuadRenderer {
     // and lets the page background bleed through the canvas
     gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
-    canvas.addEventListener('webglcontextlost', this.onLost);
+    this.count = 0;
   }
 
   /** instances queued for the current frame */
   public get instances(): number {
     return this.count;
+  }
+
+  public get contextLost(): boolean {
+    return this.lost;
   }
 
   public resize(cssWidth: number, cssHeight: number): void {
@@ -214,8 +247,11 @@ export default class QuadRenderer {
       this.canvas.height = height;
     }
 
+    this.cssSize = [cssWidth, cssHeight];
     this.resolution = [cssWidth, cssHeight];
-    this.gl.viewport(0, 0, width, height);
+    if (!this.lost) {
+      this.gl.viewport(0, 0, width, height);
+    }
   }
 
   /** start a frame. everything drawn until flush() is one draw call. */
@@ -223,6 +259,9 @@ export default class QuadRenderer {
     const { gl } = this;
 
     this.count = 0;
+    if (this.lost) {
+      return;
+    }
     if (background) {
       const [r, g, b, a] = toFloats(background);
       gl.clearColor(r, g, b, a);
@@ -348,15 +387,31 @@ export default class QuadRenderer {
   public destroy(): void {
     this.lost = true;
     this.canvas.removeEventListener('webglcontextlost', this.onLost);
+    this.canvas.removeEventListener('webglcontextrestored', this.onRestored);
     this.gl.getExtension('WEBGL_lose_context')?.loseContext();
     this.gl.deleteProgram(this.program);
     this.gl.deleteBuffer(this.instanceBuffer);
+    this.gl.deleteBuffer(this.cornerBuffer);
     this.gl.deleteVertexArray(this.vao);
   }
 
   private onLost = (event: Event) => {
+    // preventDefault is what makes the browser attempt a restore at all
     event.preventDefault();
     this.lost = true;
+    this.options.onContextLost?.();
+  };
+
+  private onRestored = () => {
+    try {
+      this.data = new Float32Array(FLOATS * this.capacity);
+      this.setup();
+      this.lost = false;
+      this.resize(this.cssSize[0], this.cssSize[1]);
+      this.options.onContextRestored?.();
+    } catch {
+      this.lost = true;
+    }
   };
 
   private createProgram(vertexSource: string, fragmentSource: string): WebGLProgram {

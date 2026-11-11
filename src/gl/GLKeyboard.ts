@@ -8,8 +8,9 @@
  * needed.
  */
 import Layout, { type Range } from '../Layout';
+import KeyboardInput from './KeyboardInput';
 import QuadRenderer from './QuadRenderer';
-import { drawKeyboard, midiAt } from './keyboardLayers';
+import { drawKeyboard } from './keyboardLayers';
 
 type Config = {
   container: HTMLElement;
@@ -27,11 +28,11 @@ export default class GLKeyboard {
   private config: Config;
   private active = new Map<number, string>();
   private observer: ResizeObserver;
+  private input: KeyboardInput;
   private raf = 0;
   private frames = 0;
   private width = 0;
   private height = 0;
-  private pointerMidi: number | null = null;
   private destroyed = false;
 
   constructor(config: Config) {
@@ -52,7 +53,13 @@ export default class GLKeyboard {
     }
 
     this.resize();
-    this.bindPointer();
+
+    this.input = new KeyboardInput({
+      canvas: this.canvas,
+      layout: this.layout,
+      onKeyDown: (midi) => this.config.onKeyDown?.(midi),
+      onKeyUp: (midi) => this.config.onKeyUp?.(midi),
+    });
 
     this.observer = new ResizeObserver(() => this.resize());
     this.observer.observe(config.container);
@@ -89,6 +96,13 @@ export default class GLKeyboard {
     this.layout.setRange(centerMidi, visibleKeys);
   }
 
+  /**
+   * No-op. The pixi renderer cached drawn graphics and needed to be told they
+   * were stale; this one rebuilds its instance buffer from state every frame.
+   * Kept so hosts written against the old API keep compiling.
+   */
+  public forceRedraw(): void {}
+
   public resize(): void {
     this.width = this.config.container.clientWidth;
     this.height = this.config.container.clientHeight;
@@ -110,43 +124,8 @@ export default class GLKeyboard {
     this.destroyed = true;
     cancelAnimationFrame(this.raf);
     this.observer.disconnect();
+    this.input.dispose();
     this.renderer.destroy();
     this.canvas.remove();
-  }
-
-  private bindPointer(): void {
-    const press = (clientX: number, clientY: number) => {
-      const bounds = this.canvas.getBoundingClientRect();
-      const midi = midiAt(this.layout, clientX - bounds.left, clientY - bounds.top);
-      if (midi === null || midi === this.pointerMidi) {
-        return;
-      }
-      this.release();
-      this.pointerMidi = midi;
-      this.config.onKeyDown?.(midi);
-    };
-
-    const release = () => this.release();
-
-    this.canvas.addEventListener('pointerdown', (event) => {
-      this.canvas.setPointerCapture(event.pointerId);
-      press(event.clientX, event.clientY);
-    });
-    this.canvas.addEventListener('pointermove', (event) => {
-      if (this.pointerMidi !== null) {
-        press(event.clientX, event.clientY);
-      }
-    });
-    this.canvas.addEventListener('pointerup', release);
-    this.canvas.addEventListener('pointercancel', release);
-    this.canvas.addEventListener('pointerleave', release);
-  }
-
-  private release(): void {
-    if (this.pointerMidi === null) {
-      return;
-    }
-    this.config.onKeyUp?.(this.pointerMidi);
-    this.pointerMidi = null;
   }
 }

@@ -12,8 +12,9 @@ import GestureAnimator from '../lib/GestureAnimator';
 import VisualizationController from '../Visualization/VisualizationController';
 import GLParticles from './GLParticles';
 import GLPianoRoll from './GLPianoRoll';
+import KeyboardInput from './KeyboardInput';
 import QuadRenderer from './QuadRenderer';
-import { drawKeyboard, midiAt } from './keyboardLayers';
+import { drawKeyboard } from './keyboardLayers';
 
 const DEFAULT_COLOR = '#5dadec';
 const DEFAULT_PIANO_HEIGHT = 250;
@@ -40,8 +41,8 @@ export default class GLVisualization {
   private readonly active = new Map<number, string>();
   private readonly gesture: GestureAnimator;
   private readonly observer: ResizeObserver;
+  private readonly input: KeyboardInput;
   private controller: VisualizationController | null = null;
-  private pointerMidi: number | null = null;
   private lastPan = 0;
   private raf = 0;
   private lastTime = 0;
@@ -84,7 +85,15 @@ export default class GLVisualization {
       },
     });
 
-    this.bindPointer();
+    this.input = new KeyboardInput({
+      canvas: this.canvas,
+      layout: this.layout,
+      onKeyDown: (midi) => this.startNote(midi, this.config.onKeyDown?.(midi) ?? DEFAULT_COLOR),
+      onKeyUp: (midi) => {
+        this.config.onKeyUp?.(midi);
+        this.endNote(midi);
+      },
+    });
     this.bindController();
 
     this.observer = new ResizeObserver(() => this.resize());
@@ -113,6 +122,21 @@ export default class GLVisualization {
   public get instanceCount(): number {
     return this.renderer.instances;
   }
+
+  /** true while the GL context is gone and the canvas cannot draw */
+  public get contextLost(): boolean {
+    return this.renderer.contextLost;
+  }
+
+  /** the keys currently held, one entry per finger */
+  public get heldNotes(): number[] {
+    return this.input.heldMidis;
+  }
+
+  /**
+   * No-op; see GLKeyboard.forceRedraw.
+   */
+  public forceRedraw(): void {}
 
   public startNote(midi: number, color = DEFAULT_COLOR, identifier?: string): void {
     this.active.set(midi, color);
@@ -162,6 +186,7 @@ export default class GLVisualization {
     this.observer.disconnect();
     this.controller?.dispose();
     this.controller = null;
+    this.input.dispose();
     this.roll.destroy();
     this.renderer.destroy();
     this.canvas.remove();
@@ -266,40 +291,4 @@ export default class GLVisualization {
     });
   }
 
-  private bindPointer(): void {
-    const press = (clientX: number, clientY: number) => {
-      const bounds = this.canvas.getBoundingClientRect();
-      const midi = midiAt(this.layout, clientX - bounds.left, clientY - bounds.top);
-      if (midi === null || midi === this.pointerMidi) {
-        return;
-      }
-      this.release();
-      this.pointerMidi = midi;
-      this.startNote(midi, this.config.onKeyDown?.(midi) ?? DEFAULT_COLOR);
-    };
-
-    const release = () => this.release();
-
-    this.canvas.addEventListener('pointerdown', (event) => {
-      this.canvas.setPointerCapture(event.pointerId);
-      press(event.clientX, event.clientY);
-    });
-    this.canvas.addEventListener('pointermove', (event) => {
-      if (this.pointerMidi !== null) {
-        press(event.clientX, event.clientY);
-      }
-    });
-    this.canvas.addEventListener('pointerup', release);
-    this.canvas.addEventListener('pointercancel', release);
-    this.canvas.addEventListener('pointerleave', release);
-  }
-
-  private release(): void {
-    if (this.pointerMidi === null) {
-      return;
-    }
-    this.config.onKeyUp?.(this.pointerMidi);
-    this.endNote(this.pointerMidi);
-    this.pointerMidi = null;
-  }
 }
