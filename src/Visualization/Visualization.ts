@@ -138,9 +138,9 @@ export default class Visualization {
     return this.renderer.contextLost;
   }
 
-  /** the keys currently held, one entry per finger */
+  /** the keys currently sounding, whether a finger or the host started them */
   public get heldNotes(): number[] {
-    return this.input.heldMidis;
+    return this.active.pressed();
   }
 
   /**

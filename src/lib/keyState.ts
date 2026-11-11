@@ -80,6 +80,11 @@ export default class KeyState {
     return (this.entries.get(midi)?.length ?? 0) > 0;
   }
 
+  /** every key with at least one source holding it */
+  public pressed(): number[] {
+    return [...this.entries.keys()];
+  }
+
   public get size(): number {
     return this.entries.size;
   }
