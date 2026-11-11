@@ -1,11 +1,10 @@
 /**
- * prototype: the keyboard drawn by QuadRenderer instead of pixi.
+ * the keyboard on its own: keys, their shadows and the frame bar.
  *
  * standalone host - owns a canvas, a resize observer, a raf loop and pointer
- * input. the drawing itself lives in `keyboardLayers.ts` so the full-scene GL
- * host can reuse it. pointer input is plain arithmetic: keys are laid out by
- * formula, so hit testing is a containment scan and pixi's event system is not
- * needed.
+ * input. the drawing itself lives in `keyboardLayers.ts` so the full-scene host
+ * can reuse it. hit testing is plain arithmetic: keys are laid out by formula,
+ * so a press is a containment scan with no event system underneath.
  */
 import Layout, { type Range } from '../Layout';
 import KeyState from '../lib/keyState';
@@ -98,7 +97,7 @@ export default class Piano {
   }
 
   /**
-   * No-op. The pixi renderer cached drawn graphics and needed to be told they
+   * No-op. The 1.x renderer cached drawn graphics and needed to be told they
    * were stale; this one rebuilds its instance buffer from state every frame.
    * Kept so hosts written against the old API keep compiling.
    */

@@ -1,9 +1,9 @@
 /**
- * keyboard drawing shared by every GL host.
+ * keyboard drawing shared by every host.
  *
- * same geometry source as the pixi path (`Layout`), same colour tokens
- * (`PianoTheme`), same layering: natural key shadow/body/stroke, then the
- * accidental stack, then the frame bar.
+ * geometry comes from `Layout` and colour tokens from `PianoTheme`, so a
+ * standalone keyboard and the full scene cannot drift apart. layering: natural
+ * key shadow/body/stroke, then the accidental stack, then the frame bar.
  */
 import Layout from '../Layout';
 import Pitch from '../Pitch';

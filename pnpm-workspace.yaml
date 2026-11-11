@@ -1,2 +1,6 @@
+# pnpm blocks dependency build scripts by default. esbuild ships its native
+# binary through a postinstall script, so it has to be approved here or
+# `pnpm install` leaves the bundler unusable and the dev server goes down with
+# ERR_PNPM_IGNORED_BUILDS. Name matching covers every esbuild in the graph.
 allowBuilds:
-  esbuild: set this to true or false
+  esbuild: true

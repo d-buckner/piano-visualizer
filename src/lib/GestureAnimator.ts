@@ -46,8 +46,8 @@ export default class GestureAnimator {
   }
 
   /**
-   * Anything that reports a frame delta - pixi's Ticker, a rAF loop, a test.
-   * Structural so the animation is not tied to a renderer.
+   * Anything that reports a frame delta - a raf loop, a ticker, a test. Keeping
+   * it structural means the animation is not tied to a renderer.
    */
   public animate(ticker: { deltaMS: number }): void {
     const deltaX = this.x.target - this.x.current;

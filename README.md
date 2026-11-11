@@ -1,7 +1,8 @@
 # Piano Visualizer
 
 Composable piano experiences for the web: a keyboard, a scrolling piano roll, or
-the full visualizer — plus optional sound. Built on PixiJS, framework-agnostic.
+the full visualizer — plus optional sound. Framework-agnostic, drawn with
+WebGL2, and no renderer dependency.
 
 Every part is a module you can use alone. Import only what you render, and your
 bundle only pays for what you imported.
@@ -9,17 +10,36 @@ bundle only pays for what you imported.
 ## Installation
 
 ```bash
-npm install piano-visualizer pixi.js
+pnpm add piano-visualizer
 ```
 
-`pixi.js` is a peer dependency, so it is bundled once and shared with the rest
-of your app.
+There is no renderer to install. The whole scene is one WebGL2 instanced quad
+draw call issued by a renderer that ships inside the package.
 
 Optional, for sound:
 
 ```bash
-npm install d-piano tone
+pnpm add d-piano tone
 ```
+
+## Requirements
+
+WebGL2. There is no Canvas2D fallback — a keyboard that silently renders nothing
+is worse than one that tells you. Check before you construct:
+
+```typescript
+import { isWebGL2Supported } from 'piano-visualizer';
+
+if (isWebGL2Supported()) {
+  new Visualization({ container });
+} else {
+  renderSomethingStatic();
+}
+```
+
+Constructing without WebGL2 throws `WebGL2UnavailableError`. A lost context
+(GPU reset, tab backgrounded on some drivers, context-limit pressure) is
+recovered automatically; `viz.contextLost` is `true` while it cannot draw.
 
 ## Usage
 
@@ -42,8 +62,9 @@ viz.destroy();
 
 ### Just the keyboard
 
-Give it an element and it runs itself — its own application, resize handling,
-and ticker. No piano roll, no falling notes, no particles are constructed.
+Give it an element and it runs itself — its own canvas, resize handling, raf
+loop and pointer input. No piano roll, no falling notes, no particles are
+constructed.
 
 ```typescript
 import Piano from 'piano-visualizer/keyboard';
@@ -57,7 +78,7 @@ const keyboard = new Piano({
 ```
 
 This is the shape a compact input strip under a score view needs. See
-`keyboard.html` in the demo (`npm run dev`, then `/keyboard.html`).
+`keyboard.html` in the demo (`pnpm dev`, then `/keyboard.html`).
 
 ### Just the piano roll
 
@@ -74,25 +95,9 @@ roll.endNote(64, 'player-1');
 ```
 
 The roll never owns note input, room state, or audio scheduling. You project
-note state in with `startNote` / `endNote`.
-
-### Composing them yourself
-
-Both modules also accept a PixiJS `Container` instead of an element, so you can
-mount them into a scene graph you already render:
-
-```typescript
-import { Layout } from 'piano-visualizer/core';
-import Piano from 'piano-visualizer/keyboard';
-import PianoRoll from 'piano-visualizer/piano-roll';
-
-const layout = new Layout({ width, height, pianoHeight: 220 });
-
-const roll = new PianoRoll({ container: myStage, layout });
-const keyboard = new Piano({ container: myStage, layout });
-```
-
-Passing one shared `Layout` is what keeps note columns and keys aligned.
+note state in with `startNote` / `endNote`. `pianoHeight` reserves the strip a
+keyboard you draw yourself occupies, so blocks stop at its top instead of
+sliding underneath.
 
 ### Sound (optional)
 
@@ -124,17 +129,28 @@ audio.pedalDown();
 
 ## Entry points
 
-| Import                              | What you get                                     |
-| ----------------------------------- | ------------------------------------------------ |
-| `piano-visualizer`                  | everything, named; default is `Visualization`    |
-| `piano-visualizer/keyboard`         | keyboard rendering + pointer input               |
-| `piano-visualizer/piano-roll`       | scrolling note blocks                            |
-| `piano-visualizer/core`             | `Layout`, `Pitch`, `Stage`, color helpers        |
-| `piano-visualizer/audio`            | `PianoAudio`, d-piano loader                     |
+| Import                        | What you get                                        |
+| ----------------------------- | --------------------------------------------------- |
+| `piano-visualizer`            | everything, named; default is `Visualization`       |
+| `piano-visualizer/keyboard`   | keyboard rendering + pointer input                  |
+| `piano-visualizer/piano-roll` | scrolling note blocks                               |
+| `piano-visualizer/core`       | `Layout`, `Pitch`, `KeyState`, colour helpers       |
+| `piano-visualizer/audio`      | `PianoAudio`, d-piano loader                        |
 
 The package ships one file per module with `"sideEffects": false`, so named
 imports from the root barrel shake as well as subpath imports. This is asserted
-on every build by `npm run check:shaking`.
+on every build by `pnpm run check:shaking`:
+
+| Import                     | Package code in the bundle |
+| -------------------------- | -------------------------- |
+| `piano-visualizer/keyboard`| 43.4 kb                    |
+| `piano-visualizer/piano-roll` | 38.3 kb                 |
+| `piano-visualizer/audio`   | 4.0 kb                     |
+| `piano-visualizer/core`    | 9.6 kb                     |
+| full composition           | 75.8 kb                    |
+
+Those are minified, uncompressed, and count only this package's own modules —
+there is no renderer library added on top.
 
 ## API
 
@@ -148,49 +164,60 @@ getRange(): { centerMidi: number; visibleKeys: number }
 setCenterMidi(midi: number) / getCenterMidi(): number
 setVisibleKeys(n: number) / getVisibleKeys(): number
 setWidthFactor(n: number) / getWidthFactor(): number
-forceRedraw()
 destroy()
 ```
 
 `identifier` lets several sources (local user, remote peers, a score player)
-hold the same note without fighting over it.
+hold the same note without fighting over it. Each key keeps a stack of presses:
+releasing one reveals the colour of whatever is still holding the key rather
+than clearing it.
+
+`forceRedraw()` still exists and does nothing. It was needed by the previous
+renderer, which cached drawn graphics; this one rebuilds its instance buffer
+from state every frame.
 
 ### `Piano` config
 
 ```typescript
 {
-  container: HTMLElement | Container; // element = standalone, container = embedded
-  layout?: Layout;                    // required when container is a Container
-  pianoHeight?: number | 'fill';      // default 'fill'
+  container: HTMLElement;
+  layout?: Layout;                              // share geometry with a host
   range?: { centerMidi: number; visibleKeys: number };
-  backgroundColor?: ColorSource;
+  backgroundColor?: string;
   onKeyDown?: (midi: number) => void;
   onKeyUp?: (midi: number) => void;
 }
 ```
 
+Plus `keyDown(midi, color?, identifier?)`, `keyUp(midi, identifier?)`,
+`setRange()`, `resize()`, `render()`, `destroy()`.
+
 ### `PianoRoll` config
 
 ```typescript
 {
-  container: HTMLElement | Container;
-  layout?: Layout;               // required when container is a Container
-  pianoHeight?: number;          // space reserved for a keyboard, default 0
+  container: HTMLElement;
+  pianoHeight?: number;      // space reserved for a keyboard, default 0
   range?: { centerMidi: number; visibleKeys: number };
-  backgroundColor?: ColorSource;
+  backgroundColor?: string;
 }
 ```
+
+Plus `startNote()`, `endNote()`, `getBlockPositions()`, `setRange()`,
+`getRange()`, `destroy()`.
 
 ### `Visualization` config
 
 ```typescript
 {
   container: HTMLElement;
-  backgroundColor?: ColorSource;   // 'transparent' for an alpha stage
+  backgroundColor?: string;
   onKeyDown?: (midi: number) => string | undefined;
   onKeyUp?: (midi: number) => void;
 }
 ```
+
+Plus `getBlockPositions()`, `heldNotes`, `contextLost`, and `destroy()`.
 
 ### `PianoAudio` config
 
@@ -209,54 +236,57 @@ hold the same note without fighting over it.
 Notes played before samples finish loading are held and replayed on ready; notes
 released before they ever sounded stay silent.
 
-## Experimental: WebGL2 backend (not published)
+## Renderer
 
-`src/gl/` holds a second renderer: a purpose-built WebGL2 instanced quad
-renderer that draws the same scene as one draw call. It is excluded from
-`dist/` and from every entry point — nothing shipped imports it. It exists to
-answer a measurement question, and it is a prototype, not a supported API.
+The scene — key bodies and shadows, note blocks with a three-stop gradient and a
+glow stack, background particles, backdrop, fade overlay — is entirely axis
+aligned rounded rectangles. So it is one instanced draw call and the "scene
+graph" is a `Float32Array`: each instance is 25 floats written into a shared
+buffer, and a frame is one `drawArraysInstanced`.
+
+There is no scene graph to diff, no texture atlas, no per-node allocation, and
+nothing to pool. That is where the size and memory numbers come from.
 
 Measured on a real GPU (Chromium with ANGLE Metal on an Apple M4 Pro, 1000×700,
-3s sample, both backends driven from an identical note schedule):
-`npm run compare:backends`.
+3s sample, driven from an identical note schedule), against the PixiJS renderer
+this replaced:
 
-| Scene | Bundle min / gz | Renderer bytes | fps | frame avg / p99 | JS heap |
-| --- | --- | --- | --- | --- | --- |
-| keyboard, pixi | 491.7 kb / 142.2 kb | 1791.7 kb | 119.7 | 8.30 / 11.20 ms | 9.9 mb |
-| keyboard, WebGL2 | 16.5 kb / 6.4 kb | 0 | 119.9 | 8.30 / 10.20 ms | 2.7 mb |
-| full scene, pixi | 513.0 kb / 147.9 kb | 1791.7 kb | 119.7 | 8.30 / 10.70 ms | 25.1 mb |
-| full scene, WebGL2 | 30.5 kb / 10.7 kb | 0 | 119.8 | 8.30 / 10.20 ms | 3.7 mb |
+| Scene | Bundle min / gz | fps | frame avg / p99 | JS heap |
+| --- | --- | --- | --- | --- |
+| keyboard, pixi | 491.7 kb / 142.2 kb | 119.7 | 8.30 / 11.20 ms | 9.9 mb |
+| keyboard, WebGL2 | 16.5 kb / 6.4 kb | 119.9 | 8.30 / 10.20 ms | 2.7 mb |
+| full scene, pixi | 513.0 kb / 147.9 kb | 119.7 | 8.30 / 10.70 ms | 25.1 mb |
+| full scene, WebGL2 | 30.5 kb / 10.7 kb | 119.8 | 8.30 / 10.20 ms | 3.7 mb |
 
-Both backends sit at vsync (this display runs at 120 Hz) and their frame
-distributions are indistinguishable, at the keyboard and at the full scene. The
-win is bytes and memory: **-93% gzipped and -85% JS heap** for the full scene.
+Both sat at vsync (a 120 Hz display) with indistinguishable frame
+distributions. **There is no frame-rate win.** The win is -93% gzipped and -85%
+JS heap for the full scene, which is what matters on a phone connected to a
+keyboard over Bluetooth.
 
-The harness deliberately launches the full Chromium build. The headless shell
+One measurement caveat, recorded so nobody repeats it: the headless shell
 rasterises through SwiftShader, and under software rasterisation the pixi scene
-drops to ~35 fps while the quad renderer holds vsync — a measurement of the CPU
-pretending to be a GPU, not of the renderers. If you re-run this on a machine
-without a GPU, expect that artefact and do not read frame rates from it.
-
-What is ported: keyboard, note blocks with the three-stop gradient and glow
-stack, background particles, backdrop, fade overlay, pointer input, and the
-shared `GestureAnimator` / `VisualizationController` (both already pixi-free).
-What is not: text, masks, render textures — the app never used them.
-
-The particle simulation lives in `src/lib/particleField.ts` and is shared by
-both backends, so the ambient background is identical either way.
+dropped to ~35 fps while the quad renderer held vsync. That was a measurement of
+the CPU pretending to be a GPU. Any benchmark here needs a real GPU.
 
 ## Development
 
 ```bash
-npm install
-npm run dev            # demo server (index.html, keyboard.html, *-gl.html)
-npm run test           # unit tests
-npm run typecheck
-npm run build          # library → dist/
-npm run build:demo     # demo site → demo-dist/
-npm run check:shaking  # asserts the tree-shaking guarantees against dist/
-npm run compare:backends  # pixi vs WebGL2 prototype: bytes, fps, heap
+pnpm install
+pnpm dev               # demo server: / and /keyboard.html
+pnpm test              # unit tests (watch)
+pnpm run test:run      # unit tests, once
+pnpm run typecheck
+pnpm run test:acceptance  # Playwright; needs `pnpm exec playwright install chromium`
+pnpm run build         # library → dist/
+pnpm run build:demo    # demo site → demo-dist/
+pnpm run check:shaking # asserts the tree-shaking guarantees against dist/
 ```
 
 The library is emitted by `tsc` as one module per file — a pre-rolled bundle
 cannot be tree shaken by a consumer's bundler, and composability is the point.
+
+Unit tests run in happy-dom, which has no WebGL context, so they cover the parts
+that do not need one: geometry, hit testing, colour, note and key state,
+particles, gestures. Everything that actually touches the GPU is covered by the
+Playwright suite, which drives real pages with real touch events and a real
+context loss.

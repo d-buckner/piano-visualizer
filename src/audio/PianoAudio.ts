@@ -2,7 +2,7 @@
  * audio adapter - turns note on/off events into sound.
  *
  * deliberately decoupled from rendering: the visualizer knows nothing about
- * audio, this knows nothing about pixi. they meet in the callbacks, which means
+ * audio, and this knows nothing about rendering. they meet in the callbacks, which means
  * a consumer can drive sound from a MIDI interface, a score player, or the
  * on-screen keyboard without choosing a side.
  *

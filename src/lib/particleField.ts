@@ -2,9 +2,9 @@
  * particle field - the renderer-agnostic half of the ambient background.
  *
  * the curl noise, depth parallax, note-colour influence and breathing are pure
- * simulation: no pixi, no webgl. both backends drive this and only differ in how
- * they emit the resulting dots, which keeps the look identical no matter which
- * renderer a consumer ships.
+ * simulation: no webgl, no drawing calls. it emits positions, sizes and colours
+ * and the renderer decides how to put them on screen, so the simulation stays
+ * testable without a GPU.
  */
 
 export type BlockRect = {

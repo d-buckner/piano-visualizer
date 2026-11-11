@@ -1,13 +1,13 @@
 /**
- * colour parsing with no pixi dependency.
+ * colour parsing for the renderer, with no dependencies.
  *
- * `ColorInput` covers the same surface pixi's `ColorSource` did - hex, rgb(),
+ * `ColorInput` covers the surface hosts pass around - hex, rgb(),
  * hsl(), CSS colour names, 24-bit numbers and [r,g,b] arrays - because the
  * public `startNote(midi, color)` API has always accepted any of them and a
  * visualizer that silently draws white for `'gold'` hides a bug in the caller.
  * Unparseable input throws at the callsite instead.
  *
- * The named-colour table is pixi's own (colord's `names` plugin), stored as one
+ * The named-colour table is the standard CSS set (148 names), stored as one
  * compact string and parsed lazily so a bundle that never sees a colour name
  * never pays for the map.
  */
@@ -69,7 +69,7 @@ export function tryParseColor(input: ColorInput): RGBA | null {
     if (input.length < 3 || input.some((channel) => typeof channel !== 'number')) {
       return null;
     }
-    // pixi treats array channels as already-normalised 0-1 floats
+    // array channels are already-normalised 0-1 floats
     return [
       clamp01(input[0]!),
       clamp01(input[1]!),
@@ -244,7 +244,7 @@ export function adjustColor(color: ColorInput, factor: number): string {
   return `#${channel(r)}${channel(g)}${channel(b)}`;
 }
 
-/** luma-weighted desaturation, matching the old pixi-backed helper. */
+/** luma-weighted desaturation. */
 export function desaturateColor(color: ColorInput, factor: number): string {
   const [r, g, b] = parseColor(color);
   const luma = r * 0.299 + g * 0.587 + b * 0.114;

@@ -2,10 +2,9 @@
  * the whole scene - backdrop, particles, note blocks, keyboard, fade - drawn by
  * one WebGL2 renderer in a single instanced draw call.
  *
- * this is the GL counterpart of `Visualization`, and deliberately reuses the
- * pixi-free pieces of it (`Layout`, `GestureAnimator`, `VisualizationController`)
- * so the comparison measures the renderer rather than a reimplementation of
- * input and easing.
+ * input and easing deliberately stay in `VisualizationController` and
+ * `GestureAnimator` rather than being folded in here, so this file is only
+ * about turning state into quads.
  */
 import Layout, { type Range } from '../Layout';
 import type { ActiveBlock } from '../lib/ActiveBlock';
@@ -270,9 +269,8 @@ export default class Visualization {
   }
 
   /**
-   * pixi paints this as a 1x256 sprite whose gradient reaches zero alpha at
-   * 32% of the roll, so drawing a rect that stops there is exact rather than
-   * approximating a fourth stop.
+   * the fade has to reach zero alpha at 32% of the roll, so the gradient stops
+   * there instead of drawing a taller rect and hoping the tail reads as clear.
    */
   private drawFade(): void {
     const { layout, renderer } = this;

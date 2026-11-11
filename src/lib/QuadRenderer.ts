@@ -1,13 +1,14 @@
 /**
- * prototype renderer: a purpose-built WebGL2 renderer for exactly what a piano
- * visualizer draws.
+ * the renderer: a purpose-built WebGL2 renderer for exactly what a piano
+ * visualizer draws, and nothing else.
  *
  * every layer of this scene — key bodies, key shadows, note blocks, glow,
  * trails, particles, the fade overlay — is an axis-aligned rounded rectangle
  * with a vertical gradient, a hairline stroke, and an alpha. so the entire
  * scene is one instanced quad draw call, and the "scene graph" is a Float32Array.
  *
- * no pixi, no three. this file plus color.ts is the whole renderer.
+ * this file plus color.ts is the whole renderer. there is no scene graph to
+ * diff, no texture atlas, and nothing to pool.
  */
 import { type RGBA, toFloats } from './color';
 import { WebGL2UnavailableError } from './webgl';

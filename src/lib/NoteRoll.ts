@@ -1,13 +1,12 @@
 /**
- * scrolling note blocks drawn by QuadRenderer.
+ * scrolling note blocks.
  *
- * the pixi roll keeps a Graphics and a glow Graphics per block, pools them, and
- * redraws a path whenever geometry moves by more than a partial pixel. none of
- * that survives here: a block is four instances (glow plus body) written into
- * the same buffer as everything else, so there is nothing to pool, nothing to
- * invalidate, and no per-block object churn beyond the block record itself.
+ * a block is a handful of instances — the glow stack plus the body — written
+ * into the same buffer as every other quad in the scene, so there is nothing to
+ * pool, nothing to invalidate, and no per-block object churn beyond the block
+ * record itself.
  *
- * geometry, motion and the glow stack match `PianoRoll` exactly.
+ * geometry, motion and the glow stack are held to the 1.x look exactly.
  */
 import Layout from '../Layout';
 import type { ActiveBlock } from './ActiveBlock';
@@ -145,7 +144,7 @@ export default class NoteRoll {
       }
     }
 
-    // glow under blocks, exactly like the two pixi containers
+    // the whole glow stack goes down before any body, so blocks do not glow over each other
     for (const item of placed) {
       this.drawGlow(renderer, item);
     }
@@ -227,7 +226,7 @@ export default class NoteRoll {
   }
 
   /**
-   * the pixi block is a three-stop vertical gradient: darkened top, base at
+   * a block is a three-stop vertical gradient: darkened top, base at
    * 0.35, lightened bottom, with a colour-matched hairline.
    */
   private palette(color: string): Palette {

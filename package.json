@@ -2,7 +2,8 @@
   "name": "piano-visualizer",
   "author": "d-buckner",
   "repository": "https://github.com/d-buckner/piano-visualizer",
-  "version": "2.0.0",
+  "version": "2.0.0-beta.1",
+  "packageManager": "pnpm@11.1.2",
   "type": "module",
   "description": "Composable piano experiences: keyboard, piano roll, or both. Optional d-piano sound.",
   "main": "./dist/index.js",
@@ -34,7 +35,8 @@
   },
   "files": [
     "dist/",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "dev": "vite",

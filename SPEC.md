@@ -23,14 +23,14 @@ experiences.
 
 ## Module Boundaries
 
-Shipped as of 2.0.0. Each boundary is a real entry point, and `npm run
+Shipped as of 2.0.0. Each boundary is a real entry point, and `pnpm run
 check:shaking` fails the build if importing one drags another along.
 
 | Boundary                                | Entry point                  |
 | --------------------------------------- | ---------------------------- |
 | Keyboard rendering and pointer input    | `piano-visualizer/keyboard`  |
 | Piano-roll timeline rendering           | `piano-visualizer/piano-roll`|
-| Shared sizing, alignment, stage host    | `piano-visualizer/core`      |
+| Shared sizing, alignment, colour, capability | `piano-visualizer/core` |
 | Optional sound (d-piano adapter)        | `piano-visualizer/audio`     |
 | Full composition (keyboard + roll)      | `piano-visualizer`           |
 
@@ -42,11 +42,13 @@ Packaging rules that make the split real rather than aspirational:
 
 - `tsc` emits one file per module; there is no pre-rolled library bundle.
 - `sideEffects: false`, so the root barrel shakes as well as the subpaths.
-- `pixi.js` is a peer dependency, never inlined.
+- There is no renderer dependency. The scene is drawn by the in-package WebGL2
+  quad renderer (`lib/QuadRenderer`), so nothing is inlined on top of it and
+  WebGL2 is a stated platform requirement rather than an implementation detail.
 - `d-piano` and `tone` are optional peers, reachable only through `./audio`.
-- A module mounted on an `HTMLElement` owns its own `Application`, resize
-  observer, and ticker via `lib/Stage`; mounted on a `Container` it owns nothing
-  and joins the host's scene graph.
+- Every module owns its own canvas, resize observer and raf loop. There is no
+  mode that joins a host scene graph; a host that composes modules composes them
+  as sibling elements and shares a `Layout` to keep geometry aligned.
 
 The keyboard module must be independently usable in compact or docked contexts,
 including a lower input strip under a sheet-music view. Consumers should be able
@@ -69,9 +71,10 @@ belong in downstream app adapters, not in this package core.
 
 The package must avoid assuming it owns a full-screen or full-main-surface
 layout. Consumers should be able to embed modules in constrained layouts with
-stable dimensions, including a compact lower keyboard strip. Resize and
-`forceRedraw` flows must continue to work for both standalone modules and full
-compositions.
+stable dimensions, including a compact lower keyboard strip. Resize and range
+flows must continue to work for both standalone modules and full compositions.
+`forceRedraw()` is retained as a no-op: the renderer rebuilds its instance
+buffer from state each frame, so there is nothing to invalidate.
 
 ## 1. Note glow and fade-out
 

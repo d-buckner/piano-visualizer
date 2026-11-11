@@ -1,11 +1,10 @@
 /**
- * Pointer input for the keyboard, with the semantics the pixi
- * `PianoController` had: one note per pointer, so two fingers play a chord
- * instead of the second finger releasing the first.
+ * Pointer input for the keyboard: one note per pointer, so two fingers play a
+ * chord instead of the second finger releasing the first.
  *
- * Pointer Events unify mouse and touch, so the per-pointer bookkeeping that
- * pixi split across `mouse*` and `touch*` handlers collapses into one map.
- * A mouse drag across keys glides the same way a finger does.
+ * Pointer Events unify mouse and touch, so there is one map of live pointers
+ * rather than separate mouse and touch bookkeeping. A mouse drag across keys
+ * glides the same way a finger does.
  */
 import Layout from '../Layout';
 import { midiAt } from './keyboardLayers';
