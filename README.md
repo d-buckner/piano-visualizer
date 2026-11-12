@@ -10,7 +10,7 @@ bundle only pays for what you imported.
 ## Installation
 
 ```bash
-pnpm add piano-visualizer
+npm install piano-visualizer
 ```
 
 There is no renderer to install. The whole scene is one WebGL2 instanced quad
