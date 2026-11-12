@@ -4,6 +4,10 @@ name: Deploy static content to Pages
 on:
   push:
     branches: ["main"]
+  # the checks are worth more before a merge than after one; the deploy job is
+  # gated to main below so a PR cannot publish to Pages
+  pull_request:
+    branches: ["main"]
   workflow_dispatch:
 
 permissions:
@@ -22,9 +26,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install pnpm
+        # no `version:` here — package.json's packageManager field is the single
+        # source of truth, and action-setup errors out if both are set
         uses: pnpm/action-setup@v4
-        with:
-          version: 11
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -60,6 +64,7 @@ jobs:
 
   deploy:
     needs: build-and-test
+    if: github.event_name != 'pull_request'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
