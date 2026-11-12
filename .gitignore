@@ -25,3 +25,9 @@ playwright-report
 *.sln
 *.sw?
 Trace-*.json
+
+# demo site build (library build stays in dist/)
+demo-dist
+
+# backend comparison screenshots
+backend-*.png

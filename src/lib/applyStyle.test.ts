@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import applyStyle from './applyStyle';
+import applyStyle from './applyStyle.js';
 
 // Mock containerStyle
 vi.mock('../containerStyle', () => ({

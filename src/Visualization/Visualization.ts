@@ -1,166 +1,171 @@
 /**
- * main entry point - orchestrates the various components and manages the pixi application.
- * handles initialization, container positioning, animation loops, and cleanup.
- * attempts to use webgpu when available, falls back to webgl.
+ * the whole scene - backdrop, particles, note blocks, keyboard, fade - drawn by
+ * one WebGL2 renderer in a single instanced draw call.
+ *
+ * input and easing deliberately stay in `VisualizationController` and
+ * `GestureAnimator` rather than being folded in here, so this file is only
+ * about turning state into quads.
  */
-import {
-  type ApplicationOptions,
-  type ColorSource,
-  Application,
-  Container,
-  FillGradient,
-  Graphics,
-  Sprite,
-  Texture,
-} from 'pixi.js';
-import Layout from '../Layout';
-import Piano from '../Piano';
-import PianoRoll from '../PianoRoll';
-import VisualizationController from './VisualizationController';
-import applyStyle from '../lib/applyStyle';
-import Cursor from '../lib/Cursor';
-import GestureAnimator from '../lib/GestureAnimator';
-import BackgroundParticles from '../lib/BackgroundParticles';
+import Layout, { type Range } from '../Layout.js';
+import type { ActiveBlock } from '../lib/ActiveBlock.js';
+import GestureAnimator from '../lib/GestureAnimator.js';
+import KeyState from '../lib/keyState.js';
+import VisualizationController from './VisualizationController.js';
+import Particles from '../lib/Particles.js';
+import NoteRoll from '../lib/NoteRoll.js';
+import KeyboardInput from '../lib/keyboardInput.js';
+import QuadRenderer from '../lib/QuadRenderer.js';
+import { drawKeyboard } from '../lib/keyboardLayers.js';
 
-const VIZ_CONFIG = {
-  DEFAULT_COLOR: '#5dadec',
-  EASING_X_DELTA_DIVISOR: 600, // magic snap speed divisor (lower is faster)
-  EASING_X_DELTA_POW: 1.5,
-  DEFAULT_PIANO_HEIGHT: 250
-} as const;
-
-type KeyHandler = (midi: number) => undefined | string;
-
-type Config = {
-  container: HTMLElement;
-  backgroundColor?: ColorSource;
-  onKeyUp?: KeyHandler;
-  onKeyDown?: KeyHandler;
-};
-
-type Range = {
-  centerMidi: number;
-  visibleKeys: number;
-};
+const DEFAULT_COLOR = '#5dadec';
+const DEFAULT_PIANO_HEIGHT = 250;
+const EASING_X_DELTA_DIVISOR = 600;
+const EASING_X_DELTA_POW = 1.5;
 
 type PerfProbe = {
   frameWorkMs?: number[];
 };
 
-export default class Visualization {
-  private app: Application;
-  private config: Config;
-  private piano: Piano;
-  private pianoRoll: PianoRoll;
-  private layout: Layout;
-  private htmlContainer: HTMLDivElement;
-  private renderContainer: Container;
-  private sceneBackdrop: Graphics;
-  private fadeOverlay: Sprite;
-  private backgroundParticles: BackgroundParticles;
-  private resizeObserver: ResizeObserver;
-  private gestureAnimator: GestureAnimator;
-  private controller: VisualizationController | null = null;
+export type VisualizationConfig = {
+  container: HTMLElement;
+  backgroundColor?: string;
+  onKeyDown?: (midi: number) => undefined | string;
+  onKeyUp?: (midi: number) => void;
+  /** diagnostics: restrict which layers draw, to isolate a visual difference */
+  layers?: Partial<Record<'backdrop' | 'particles' | 'roll' | 'keyboard' | 'fade', boolean>>;
+};
 
-  constructor(config: Config) {
+export default class Visualization {
+  public readonly layout: Layout;
+  private readonly config: VisualizationConfig;
+  private readonly layers: Record<string, boolean>;
+  private readonly canvas: HTMLCanvasElement;
+  private readonly renderer: QuadRenderer;
+  private readonly particles: Particles;
+  private readonly roll: NoteRoll;
+  private readonly active = new KeyState();
+  private readonly gesture: GestureAnimator;
+  private readonly observer: ResizeObserver;
+  private readonly input: KeyboardInput;
+  private controller: VisualizationController | null = null;
+  private lastPan = 0;
+  private raf = 0;
+  private lastTime = 0;
+  private destroyed = false;
+  private frames = 0;
+
+  constructor(config: VisualizationConfig) {
     this.config = config;
-    this.app = new Application();
-    this.htmlContainer = document.createElement('div');
-    Cursor.init(this.htmlContainer);
-    this.app.resizeTo = config.container;
-    this.renderContainer = new Container();
-    this.sceneBackdrop = new Graphics();
-    this.fadeOverlay = new Sprite(this.createFadeTexture());
-    this.fadeOverlay.eventMode = 'none';
+    this.layers = {
+      backdrop: true,
+      particles: true,
+      roll: true,
+      keyboard: true,
+      fade: true,
+      ...config.layers,
+    };
+    this.canvas = document.createElement('canvas');
+    this.canvas.style.cssText = 'display:block;width:100%;height:100%;touch-action:none;';
+    config.container.append(this.canvas);
+
+    this.renderer = new QuadRenderer(this.canvas);
     this.layout = new Layout({
       width: config.container.clientWidth,
       height: config.container.clientHeight,
-      pianoHeight: VIZ_CONFIG.DEFAULT_PIANO_HEIGHT,
+      pianoHeight: DEFAULT_PIANO_HEIGHT,
     });
 
-    this.backgroundParticles = new BackgroundParticles({
-      layout: this.layout,
-      getActiveBlocks: () =>
-        this.pianoRoll.getBlockPositions(this.renderContainer.x),
+    this.particles = new Particles({
+      width: this.layout.getWidth(),
+      height: this.layout.getPianoRollHeight(),
     });
-    this.pianoRoll = new PianoRoll({
-      container: this.renderContainer,
-      layout: this.layout,
-    });
-    this.piano = new Piano({
-      container: this.renderContainer,
-      layout: this.layout,
-      onKeyDown: (midi) => {
-        const color = this.config?.onKeyDown?.(midi);
-        this.startNote(midi, color);
+    this.roll = new NoteRoll(this.layout);
+    this.lastPan = this.layout.getX();
+
+    this.gesture = new GestureAnimator({
+      onPositionChange: (x) => this.layout.setX(x),
+      easing: {
+        deltaPowtValue: EASING_X_DELTA_POW,
+        deltaDivisor: EASING_X_DELTA_DIVISOR,
       },
+    });
+
+    this.input = new KeyboardInput({
+      canvas: this.canvas,
+      layout: this.layout,
+      onKeyDown: (midi) => this.startNote(midi, this.config.onKeyDown?.(midi) ?? DEFAULT_COLOR),
       onKeyUp: (midi) => {
         this.config.onKeyUp?.(midi);
         this.endNote(midi);
       },
     });
+    this.bindController();
 
-    this.app.stage.addChild(this.sceneBackdrop);
-    this.app.stage.addChild(this.backgroundParticles.container);
-    this.app.stage.addChild(this.renderContainer);
-    this.app.stage.addChild(this.fadeOverlay);
-    
-    this.gestureAnimator = new GestureAnimator({
-      onPositionChange: (x) => {
-        this.renderContainer.x = x;
-        this.layout.setX(x);
-      },
-      easing: {
-        deltaPowtValue: VIZ_CONFIG.EASING_X_DELTA_POW,
-        deltaDivisor: VIZ_CONFIG.EASING_X_DELTA_DIVISOR,
-      },
-    });
-    
-    this.init();
+    this.observer = new ResizeObserver(() => this.resize());
+    this.observer.observe(config.container);
+    this.resize();
 
-    this.resizeObserver = new ResizeObserver(([{ contentRect }]) => {
-      this.layout.setWidth(contentRect.width);
-      this.layout.setHeight(contentRect.height);
-      
-      // Force redraw since layout changed
-      this.pianoRoll.forceRedraw();
-      this.piano.forceRedraw();
-      this.drawSceneBackdrop();
-      
-      // Immediately sync container position to prevent key shifting during resize
-      const newX = this.layout.getX();
-      this.gestureAnimator.setPosition(newX);
-      this.gestureAnimator.setTarget(newX);
-    });
-    this.resizeObserver.observe(config.container);
+    this.lastTime = performance.now();
+    const loop = () => {
+      if (this.destroyed) {
+        return;
+      }
+      const now = performance.now();
+      const deltaMS = Math.min(64, now - this.lastTime);
+      this.lastTime = now;
+      this.renderFrame(deltaMS);
+      // the acceptance suite samples JS work per frame through this probe; it is
+      // absent unless something has installed it, so shipping builds pay nothing
+      (globalThis as { __pianoVisualizerPerf?: PerfProbe }).__pianoVisualizerPerf
+        ?.frameWorkMs?.push(performance.now() - now);
+      this.frames += 1;
+      this.raf = requestAnimationFrame(loop);
+    };
+    this.raf = requestAnimationFrame(loop);
   }
 
-  public startNote(
-    midi: number,
-    color: string = VIZ_CONFIG.DEFAULT_COLOR,
-    identifier?: string,
-  ) {
-    this.pianoRoll.startNote(midi, color, identifier);
-    this.piano.keyDown(midi, color, identifier);
+  public get frameCount(): number {
+    return this.frames;
   }
 
-  public endNote(midi: number, identifier?: string) {
-    this.pianoRoll.endNote(midi, identifier);
-    this.piano.keyUp(midi, identifier);
+  public get instanceCount(): number {
+    return this.renderer.instances;
+  }
+
+  /** true while the GL context is gone and the canvas cannot draw */
+  public get contextLost(): boolean {
+    return this.renderer.contextLost;
+  }
+
+  /** the keys currently sounding, whether a finger or the host started them */
+  public get heldNotes(): number[] {
+    return this.active.pressed();
+  }
+
+  /**
+   * No-op; see Piano.forceRedraw.
+   */
+  public forceRedraw(): void {}
+
+  public startNote(midi: number, color = DEFAULT_COLOR, identifier?: string): void {
+    this.roll.startNote(midi, color, identifier);
+    this.active.press(midi, color, identifier);
+  }
+
+  public endNote(midi: number, identifier?: string): void {
+    this.roll.endNote(midi, identifier);
+    // forwarding the identifier matters: with two sources holding one key,
+    // releasing one must reveal the other's colour rather than clear the key
+    this.active.release(midi, identifier);
+  }
+
+  /** where the note blocks currently sit, in canvas pixels */
+  public getBlockPositions(): ActiveBlock[] {
+    return this.roll.getBlockPositions();
   }
 
   public setRange(centerMidi: number, visibleKeys: number): void {
-    // Use the Layout's setRange method which handles validation and positioning
     this.layout.setRange(centerMidi, visibleKeys);
-    
-    // Force redraw since positions changed
-    this.pianoRoll.forceRedraw();
-    this.piano.forceRedraw();
-    
-    // Sync the gesture animator to the new position
-    const newX = this.layout.getX();
-    this.gestureAnimator.setPosition(newX);
-    this.gestureAnimator.setTarget(newX);
   }
 
   public getRange(): Range {
@@ -168,8 +173,7 @@ export default class Visualization {
   }
 
   public setCenterMidi(midi: number): void {
-    const currentRange = this.layout.getRange();
-    this.setRange(midi, currentRange.visibleKeys);
+    this.layout.setCenterMidi(midi);
   }
 
   public getCenterMidi(): number {
@@ -177,8 +181,7 @@ export default class Visualization {
   }
 
   public setVisibleKeys(visibleKeys: number): void {
-    const currentRange = this.layout.getRange();
-    this.setRange(currentRange.centerMidi, visibleKeys);
+    this.layout.setVisibleKeys(visibleKeys);
   }
 
   public getVisibleKeys(): number {
@@ -187,116 +190,120 @@ export default class Visualization {
 
   public setWidthFactor(widthFactor: number): void {
     this.layout.setWidthFactor(widthFactor);
-    this.pianoRoll.forceRedraw();
-    this.piano.forceRedraw();
   }
 
   public getWidthFactor(): number {
     return this.layout.getWidthFactor();
   }
 
-  public destroy() {
+  public destroy(): void {
+    this.destroyed = true;
+    cancelAnimationFrame(this.raf);
+    this.observer.disconnect();
     this.controller?.dispose();
     this.controller = null;
-    this.resizeObserver.disconnect();
-    this.pianoRoll.destroy();
-    this.backgroundParticles.destroy();
-    this.app.destroy();
+    this.input.dispose();
+    this.roll.destroy();
+    this.renderer.destroy();
+    this.canvas.remove();
   }
 
-  private drawSceneBackdrop(): void {
-    const width = this.layout.getWidth();
-    const height = this.layout.getHeight();
-    const pianoY = this.layout.getPianoY();
-    const gradient = new FillGradient(0, 0, 0, height);
-    gradient.addColorStop(0, '#02040b');
-    gradient.addColorStop(0.62, '#070911');
-    gradient.addColorStop(1, '#010101');
-    gradient.buildLinearGradient();
+  private renderFrame(deltaMS: number): void {
+    const renderer = this.renderer;
+    const layout = this.layout;
+    const ticker = { deltaMS } as never;
 
-    this.sceneBackdrop.clear();
-    this.sceneBackdrop.rect(0, 0, width, height).fill(gradient);
+    renderer.begin(this.config.backgroundColor ?? '#020410');
+    if (this.layers.backdrop) {
+      this.drawBackdrop();
+    }
 
+    const pan = layout.getX();
+    if (this.layers.particles) {
+      this.particles.render(renderer, {
+        deltaMS,
+        width: layout.getWidth(),
+        height: layout.getPianoRollHeight(),
+        panDelta: pan - this.lastPan,
+        blocks: this.roll.getBlockPositions(),
+      });
+    }
+    this.lastPan = pan;
+
+    if (this.layers.roll) {
+      this.roll.render(renderer, deltaMS);
+    }
+    if (this.layers.keyboard) {
+      drawKeyboard(renderer, layout, this.active);
+    }
+    if (this.layers.fade) {
+      this.drawFade();
+    }
+    renderer.flush();
+
+    this.gesture.animate(ticker);
+  }
+
+  private drawBackdrop(): void {
+    const { layout, renderer } = this;
+    const width = layout.getWidth();
+    const height = layout.getHeight();
+    const pianoY = layout.getPianoY();
     const edgeWidth = Math.max(80, width * 0.16);
-    this.sceneBackdrop.rect(0, 0, edgeWidth, height).fill({
-      color: '#000000',
-      alpha: 0.32,
-    });
-    this.sceneBackdrop.rect(width - edgeWidth, 0, edgeWidth, height).fill({
-      color: '#000000',
-      alpha: 0.32,
-    });
-    this.sceneBackdrop.rect(0, pianoY - 5, width, 8).fill({
-      color: '#111827',
-      alpha: 0.7,
+
+    renderer.rect({
+      x: 0, y: 0, w: width, h: height,
+      color: '#02040b',
+      gradient: '#010101',
+      gradientMid: '#070911',
+      gradientMidAt: 0.62,
     });
 
-    this.fadeOverlay.width = width;
-    this.fadeOverlay.height = pianoY;
+    renderer.rect({ x: 0, y: 0, w: edgeWidth, h: height, color: '#000000', alpha: 0.32 });
+    renderer.rect({
+      x: width - edgeWidth, y: 0, w: edgeWidth, h: height, color: '#000000', alpha: 0.32,
+    });
+    renderer.rect({
+      x: 0, y: pianoY - 5, w: width, h: 8, color: '#111827', alpha: 0.7,
+    });
   }
 
-  private createFadeTexture(): Texture {
-    const canvas = document.createElement('canvas');
-    canvas.width = 1;
-    canvas.height = 256;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      return Texture.from(canvas);
-    }
-    const gradient = ctx.createLinearGradient(0, 0, 0, 256);
-    gradient.addColorStop(0, 'rgba(2, 4, 11, 0.7)');
-    gradient.addColorStop(0.18, 'rgba(2, 4, 11, 0.35)');
-    gradient.addColorStop(0.32, 'rgba(2, 4, 11, 0)');
-    gradient.addColorStop(1, 'rgba(2, 4, 11, 0)');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 1, 256);
-    return Texture.from(canvas);
+  /**
+   * the fade has to reach zero alpha at 32% of the roll, so the gradient stops
+   * there instead of drawing a taller rect and hoping the tail reads as clear.
+   */
+  private drawFade(): void {
+    const { layout, renderer } = this;
+    const pianoY = layout.getPianoY();
+    const stop = pianoY * 0.32;
+
+    renderer.rect({
+      x: 0, y: 0, w: layout.getWidth(), h: stop,
+      color: 'rgba(2, 4, 11, 0.7)',
+      gradient: 'rgba(2, 4, 11, 0)',
+      gradientMid: 'rgba(2, 4, 11, 0.35)',
+      gradientMidAt: 0.18 / 0.32,
+    });
   }
 
-  private async init() {
-    const { container, backgroundColor } = this.config;
-    const options: Partial<ApplicationOptions> = {
-      resizeTo: container,
-    };
-    if (backgroundColor === 'transparent') {
-      options.backgroundAlpha = 0;
-    } else {
-      options.background = backgroundColor;
-    }
+  private resize(): void {
+    const width = this.config.container.clientWidth;
+    const height = this.config.container.clientHeight;
+    this.layout.setWidth(width);
+    this.layout.setHeight(height);
+    this.layout.updatePianoHeight(DEFAULT_PIANO_HEIGHT);
+    this.renderer.resize(width, height);
+  }
 
-    await this.app.init(options);
-    this.drawSceneBackdrop();
-
+  private bindController(): void {
     this.controller = new VisualizationController({
-      canvas: this.app.canvas,
+      canvas: this.canvas,
       layout: this.layout,
-      onContainerTargetXChange: (x) => {
-        this.gestureAnimator.setTarget(x);
-      },
-      onContainerXChange: (x) => {
-        this.gestureAnimator.setPosition(x);
-      },
-      onWidthFactorChange: () => {
-        this.pianoRoll.forceRedraw();
-        this.piano.forceRedraw();
-      },
-      onWidthFactorTargetChange: () => {
-        this.pianoRoll.forceRedraw();
-        this.piano.forceRedraw();
-      },
-    });
-    this.htmlContainer.append(this.app.canvas);
-    this.htmlContainer.id = applyStyle();
-    container.append(this.htmlContainer);
-
-    this.app.ticker.add((delta) => {
-      const frameStart = performance.now();
-      this.backgroundParticles.render(delta);
-      this.piano.render();
-      this.pianoRoll.render(delta);
-      this.gestureAnimator.animate(delta);
-      (globalThis as { __pianoVisualizerPerf?: PerfProbe }).__pianoVisualizerPerf
-        ?.frameWorkMs?.push(performance.now() - frameStart);
+      onContainerTargetXChange: (x) => this.gesture.setTarget(x),
+      onContainerXChange: (x) => this.gesture.setPosition(x),
+      onWidthFactorChange: () => undefined,
+      onWidthFactorTargetChange: () => undefined,
     });
   }
+
 }

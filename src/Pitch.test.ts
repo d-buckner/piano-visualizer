@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import Pitch from './Pitch';
+import Pitch from './Pitch.js';
 
 describe('Pitch', () => {
   describe('constructor', () => {

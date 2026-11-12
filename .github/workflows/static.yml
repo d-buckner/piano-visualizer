@@ -1,54 +1,74 @@
-# Simple workflow for deploying static content to GitHub Pages
+# Build, test and deploy the demo to GitHub Pages.
 name: Deploy static content to Pages
 
 on:
-  # Runs on pushes targeting the default branch
   push:
     branches: ["main"]
-
-  # Allows you to run this workflow manually from the Actions tab
+  # the checks are worth more before a merge than after one; the deploy job is
+  # gated to main below so a PR cannot publish to Pages
+  pull_request:
+    branches: ["main"]
   workflow_dispatch:
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
-# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
 concurrency:
   group: "pages"
   cancel-in-progress: false
 
 jobs:
-  # Build and test job
   build-and-test:
-    runs-on: ubuntu-latest
+    # pinned, not ubuntu-latest: latest moved to 26.04 and Playwright 1.60
+    # refuses to install chromium there ("Playwright does not support chromium
+    # on ubuntu26.04-x64"). bump this together with @playwright/test once the
+    # installed version supports the newer image.
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Install pnpm
+        # no `version:` here — package.json's packageManager field is the single
+        # source of truth, and action-setup errors out if both are set
+        uses: pnpm/action-setup@v4
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
+          node-version: '22.x'
+          cache: pnpm
       - name: Install dependencies
-        run: npm install
-      - name: Run tests
-        run: npm test
-      - name: Build project
-        run: npm run build
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm run typecheck
+      - name: Unit tests
+        run: pnpm run test:run
+      - name: Build
+        run: pnpm run build
+      - name: Verify tree shaking
+        run: pnpm run check:shaking
+      # bundlers resolve extensionless imports, so a package that only works
+      # inside a bundler passes every other check here and breaks on install
+      - name: Verify package resolves as ESM
+        run: pnpm run check:package
       - name: Build demo
-        run: npm run build:demo
+        run: pnpm run build:demo
+      - name: Install browsers
+        run: pnpm exec playwright install --with-deps chromium
+      # the renderer is WebGL2 and happy-dom has no GL context, so the acceptance
+      # suite is the only place the actual drawing path is exercised
+      - name: Acceptance tests
+        run: pnpm run test:acceptance
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: dist
-          path: './dist'
+          name: demo
+          path: './demo-dist'
 
-  # Deploy job - only runs if build-and-test succeeds
   deploy:
     needs: build-and-test
+    if: github.event_name != 'pull_request'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -57,14 +77,14 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: dist
-          path: './dist'
+          name: demo
+          path: './demo-dist'
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './dist'
+          path: './demo-dist'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

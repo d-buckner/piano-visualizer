@@ -1,4 +1,3 @@
-import { type Ticker } from 'pixi.js';
 
 type AnimationTarget = {
   current: number;
@@ -46,7 +45,11 @@ export default class GestureAnimator {
     return this.x.target;
   }
 
-  public animate(ticker: Ticker): void {
+  /**
+   * Anything that reports a frame delta - a raf loop, a ticker, a test. Keeping
+   * it structural means the animation is not tied to a renderer.
+   */
+  public animate(ticker: { deltaMS: number }): void {
     const deltaX = this.x.target - this.x.current;
     
     if (deltaX === 0) {

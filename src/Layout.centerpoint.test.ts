@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import Layout from './Layout';
+import Layout from './Layout.js';
 
 describe('Layout Center-Point System', () => {
   let layout: Layout;

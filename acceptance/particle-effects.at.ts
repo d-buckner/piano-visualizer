@@ -2,10 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { ActiveBlock } from '../src/lib/ActiveBlock';
 
 type ParticleEffectsDemo = {
-  pianoRoll: {
-    getBlockPositions: (x: number) => ActiveBlock[];
-    blocks: Map<number, unknown[]>;
-  };
+  getBlockPositions: () => ActiveBlock[];
   startNote: (midi: number, color: string, id: string) => void;
   endNote: (midi: number, id: string) => void;
 };
@@ -55,8 +52,8 @@ test('particles adopt colors from nearby blocks', async ({ browser }, testInfo) 
 
     // Start a probe note to guarantee a block exists
     viz.startNote(64, '#ff4444', 'probe');
-    const hasMethod = typeof viz.pianoRoll.getBlockPositions === 'function';
-    const positions = viz.pianoRoll.getBlockPositions(0);
+    const hasMethod = typeof viz.getBlockPositions === 'function';
+    const positions = viz.getBlockPositions();
     const probeBlock = positions.find((p) => p.color === '#ff4444');
     viz.endNote(64, 'probe');
 

@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    /* per-file emit, one .js + .d.ts per source module. bundlers need real
+     * module boundaries to shake unused modules out; a single rolled bundle
+     * cannot be tree shaken no matter what the consumer imports. */
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": []
+  },
+  "include": ["src"],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/demo.ts",
+    "src/demo-keyboard.ts",
+    "src/vite-env.d.ts"
+  ]
+}

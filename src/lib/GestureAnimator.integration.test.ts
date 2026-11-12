@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import GestureAnimator from './GestureAnimator';
+import GestureAnimator from './GestureAnimator.js';
 
 describe('GestureAnimator Integration', () => {
   it('should produce identical animation steps to original implementation', () => {

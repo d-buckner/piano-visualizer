@@ -1,6 +1,6 @@
-import debounce from '../lib/debounce';
-import Layout, { Section } from '../Layout';
-import Cursor, { CursorType } from '../lib/Cursor';
+import debounce from '../lib/debounce.js';
+import Layout, { Section } from '../Layout.js';
+import Cursor, { CursorType } from '../lib/Cursor.js';
 
 type VisualizationControllerOptions = {
   canvas: HTMLCanvasElement;
@@ -148,14 +148,14 @@ export default class VisualizationController {
 
   private onTouchStart(e: TouchEvent) {
     if (!this.isTouchInPianoRoll(e.touches)) {
-      return; // Piano key touches handled by PianoController via PixiJS
+      return; // piano key touches belong to the keyboard's own pointer input
     }
 
-    // Defense-in-depth layer 2: preventDefault on the native TouchEvent for
-    // piano roll touches. PixiJS calls preventDefault on the PointerEvent it
-    // synthesizes, but iOS uses the original TouchEvent to decide whether to
-    // start text selection, show the magnifier loupe, or trigger the callout
-    // menu. Piano touches are excluded so they can propagate to PixiJS normally.
+    // preventDefault on the native TouchEvent, not just the PointerEvent.
+    // iOS uses the original TouchEvent to decide whether to start text
+    // selection, show the magnifier loupe, or trigger the callout menu, so
+    // suppressing only the synthesized pointer event is not enough. Piano
+    // touches are excluded: the keyboard handles those itself.
     e.preventDefault();
 
     const { layout } = this.options;

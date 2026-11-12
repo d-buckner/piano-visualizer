@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import PianoVisualization from './index';
+import PianoVisualization, * as exports from './index.js';
 
 // Mock the entire Visualization module
 vi.mock('./Visualization', () => ({
@@ -50,5 +50,20 @@ describe('index (main export)', () => {
     expect(visualization.keyUp).toBeDefined();
     expect(visualization.clearKeys).toBeDefined();
     expect(visualization.redraw).toBeDefined();
+  });
+
+  it('should expose every module by name from the root barrel', () => {
+    // the default export stays for back-compat; the named exports are what make
+    // the package composable without reaching into deep paths
+    expect(typeof exports.Visualization).toBe('function');
+    expect(typeof exports.Piano).toBe('function');
+    expect(typeof exports.PianoRoll).toBe('function');
+    expect(typeof exports.Layout).toBe('function');
+    expect(typeof exports.Pitch).toBe('function');
+    expect(exports.Section).toBeDefined();
+  });
+
+  it('should keep the default export and the named one identical', () => {
+    expect(exports.Visualization).toBe(PianoVisualization);
   });
 });
