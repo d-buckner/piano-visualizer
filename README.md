@@ -19,7 +19,7 @@ draw call issued by a renderer that ships inside the package.
 Optional, for sound:
 
 ```bash
-pnpm add d-piano tone
+npm install d-piano tone
 ```
 
 ## Requirements
