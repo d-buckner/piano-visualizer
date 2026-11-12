@@ -21,7 +21,11 @@ concurrency:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
+    # pinned, not ubuntu-latest: latest moved to 26.04 and Playwright 1.60
+    # refuses to install chromium there ("Playwright does not support chromium
+    # on ubuntu26.04-x64"). bump this together with @playwright/test once the
+    # installed version supports the newer image.
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
