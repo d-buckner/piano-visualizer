@@ -3,7 +3,7 @@
  * calculates where keys should be positioned and manages viewport scaling.
  * adapts the visible key range based on screen width.
  */
-import Pitch from './Pitch';
+import Pitch from './Pitch.js';
 
 const PIANO_DIMENSIONS = {
   NATURAL_KEY_WIDTH: 100,

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { drawKeyboard, keyRect, midiAt, MIDI_MAX, MIDI_MIN, SHAPE } from './keyboardLayers';
-import KeyState from './keyState';
-import Layout from '../Layout';
-import type QuadRenderer from './QuadRenderer';
+import { drawKeyboard, keyRect, midiAt, MIDI_MAX, MIDI_MIN, SHAPE } from './keyboardLayers.js';
+import KeyState from './keyState.js';
+import Layout from '../Layout.js';
+import type QuadRenderer from './QuadRenderer.js';
 
 type Rect = {
   x: number;

@@ -1,4 +1,4 @@
-import containerStyle from '../containerStyle';
+import containerStyle from '../containerStyle.js';
 
 const PREFIX = 'pviz_';
 

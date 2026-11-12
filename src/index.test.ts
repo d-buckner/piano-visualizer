@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import PianoVisualization, * as exports from './index';
+import PianoVisualization, * as exports from './index.js';
 
 // Mock the entire Visualization module
 vi.mock('./Visualization', () => ({

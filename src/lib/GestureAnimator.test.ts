@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import GestureAnimator from './GestureAnimator';
+import GestureAnimator from './GestureAnimator.js';
 
 describe('GestureAnimator', () => {
   let animator: GestureAnimator;

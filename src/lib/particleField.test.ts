@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import ParticleField, { type ParticleDraw } from './particleField';
+import ParticleField, { type ParticleDraw } from './particleField.js';
 
 const parseColor = (color: string): [number, number, number] => {
   const digits = color.slice(1);

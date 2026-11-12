@@ -2,7 +2,7 @@
  * demo: the keyboard strip on its own, the shape p2piano sheet-music mode needs.
  * open /keyboard.html.
  */
-import Piano from './Piano';
+import Piano from './Piano/index.js';
 
 const COLORS = ['#4d91ff', '#62d982', '#bd4ed8', '#f2c14e'];
 

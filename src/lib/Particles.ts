@@ -5,9 +5,9 @@
  * into circles, so the ambient background looks identical whichever renderer a
  * consumer ships.
  */
-import ParticleField, { type BlockRect, type ParticleDraw } from './particleField';
-import type QuadRenderer from './QuadRenderer';
-import { desaturateColor, parseColor, type RGBA } from './color';
+import ParticleField, { type BlockRect, type ParticleDraw } from './particleField.js';
+import type QuadRenderer from './QuadRenderer.js';
+import { desaturateColor, parseColor, type RGBA } from './color.js';
 
 type Config = {
   width: number;

@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { isWebGL2Supported, resetWebGL2SupportCache, WebGL2UnavailableError } from './webgl';
+import { isWebGL2Supported, resetWebGL2SupportCache, WebGL2UnavailableError } from './webgl.js';
 
 describe('isWebGL2Supported', () => {
   afterEach(() => {

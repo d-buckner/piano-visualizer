@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseColor, tryParseColor, adjustColor, desaturateColor } from './color';
+import { parseColor, tryParseColor, adjustColor, desaturateColor } from './color.js';
 
 describe('parseColor', () => {
   it('parses every hex length', () => {

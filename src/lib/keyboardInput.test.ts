@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import KeyboardInput from './keyboardInput';
-import Layout from '../Layout';
+import KeyboardInput from './keyboardInput.js';
+import Layout from '../Layout.js';
 
 function makeLayout() {
   return new Layout({ width: 900, height: 600, pianoHeight: 200 });

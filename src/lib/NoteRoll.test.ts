@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import NoteRoll from './NoteRoll';
-import Layout from '../Layout';
-import type QuadRenderer from './QuadRenderer';
+import NoteRoll from './NoteRoll.js';
+import Layout from '../Layout.js';
+import type QuadRenderer from './QuadRenderer.js';
 
 type Push = [number, number, number, number, number, number, number, ...unknown[]];
 

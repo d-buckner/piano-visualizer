@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import KeyState from './keyState';
+import KeyState from './keyState.js';
 
 describe('KeyState', () => {
   let keys: KeyState;

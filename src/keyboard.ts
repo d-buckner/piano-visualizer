@@ -6,6 +6,6 @@
  *
  * this is the entry sheet-music modes and compact input strips are built from.
  */
-export { default } from './Piano';
-export { default as Piano } from './Piano';
-export type { PianoConfig } from './Piano/Piano';
+export { default } from './Piano/index.js';
+export { default as Piano } from './Piano/index.js';
+export type { PianoConfig } from './Piano/Piano.js';

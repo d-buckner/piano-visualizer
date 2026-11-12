@@ -3,8 +3,12 @@
     "target": "ES2020",
     "useDefineForClassFields": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "moduleResolution": "bundler",
+    /* NodeNext, not bundler: the emitted JS must resolve under plain Node ESM,
+     * not just under Vite. "bundler" permits extensionless relative imports and
+     * tsc emits them verbatim, which produced a published package that only
+     * worked inside a bundler. NodeNext forces explicit .js extensions. */
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "skipLibCheck": true,
     "isolatedModules": true,
     "moduleDetection": "force",

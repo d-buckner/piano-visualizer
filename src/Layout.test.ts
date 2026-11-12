@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import Layout from './Layout';
+import Layout from './Layout.js';
 
 describe('Layout', () => {
   let layout: Layout;

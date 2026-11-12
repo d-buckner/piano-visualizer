@@ -5,11 +5,11 @@
  * standalone keyboard and the full scene cannot drift apart. layering: natural
  * key shadow/body/stroke, then the accidental stack, then the frame bar.
  */
-import Layout from '../Layout';
-import Pitch from '../Pitch';
-import { PianoTheme } from '../Piano/PianoTheme';
-import type QuadRenderer from './QuadRenderer';
-import { adjustColor } from './color';
+import Layout from '../Layout.js';
+import Pitch from '../Pitch.js';
+import { PianoTheme } from '../Piano/PianoTheme.js';
+import type QuadRenderer from './QuadRenderer.js';
+import { adjustColor } from './color.js';
 
 export const MIDI_MIN = 21;
 export const MIDI_MAX = 108;

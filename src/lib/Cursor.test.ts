@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import Cursor, { CursorType } from './Cursor';
+import Cursor, { CursorType } from './Cursor.js';
 
 describe('Cursor', () => {
   let mockElement: HTMLElement;

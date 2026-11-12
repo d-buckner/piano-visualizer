@@ -1,6 +1,6 @@
-import debounce from '../lib/debounce';
-import Layout, { Section } from '../Layout';
-import Cursor, { CursorType } from '../lib/Cursor';
+import debounce from '../lib/debounce.js';
+import Layout, { Section } from '../Layout.js';
+import Cursor, { CursorType } from '../lib/Cursor.js';
 
 type VisualizationControllerOptions = {
   canvas: HTMLCanvasElement;

@@ -11,9 +11,9 @@
  *
  * or bring your own instrument and leave d-piano out of the graph entirely.
  */
-export { default } from './audio/PianoAudio';
-export { default as PianoAudio } from './audio/PianoAudio';
-export type { PianoAudioConfig, AudioHandlers } from './audio/PianoAudio';
+export { default } from './audio/PianoAudio.js';
+export { default as PianoAudio } from './audio/PianoAudio.js';
+export type { PianoAudioConfig, AudioHandlers } from './audio/PianoAudio.js';
 
-export { loadDPiano } from './audio/loadDPiano';
-export type { Instrument, DPianoOptions } from './audio/loadDPiano';
+export { loadDPiano } from './audio/loadDPiano.js';
+export type { Instrument, DPianoOptions } from './audio/loadDPiano.js';

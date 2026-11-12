@@ -6,16 +6,16 @@
  * `GestureAnimator` rather than being folded in here, so this file is only
  * about turning state into quads.
  */
-import Layout, { type Range } from '../Layout';
-import type { ActiveBlock } from '../lib/ActiveBlock';
-import GestureAnimator from '../lib/GestureAnimator';
-import KeyState from '../lib/keyState';
-import VisualizationController from './VisualizationController';
-import Particles from '../lib/Particles';
-import NoteRoll from '../lib/NoteRoll';
-import KeyboardInput from '../lib/keyboardInput';
-import QuadRenderer from '../lib/QuadRenderer';
-import { drawKeyboard } from '../lib/keyboardLayers';
+import Layout, { type Range } from '../Layout.js';
+import type { ActiveBlock } from '../lib/ActiveBlock.js';
+import GestureAnimator from '../lib/GestureAnimator.js';
+import KeyState from '../lib/keyState.js';
+import VisualizationController from './VisualizationController.js';
+import Particles from '../lib/Particles.js';
+import NoteRoll from '../lib/NoteRoll.js';
+import KeyboardInput from '../lib/keyboardInput.js';
+import QuadRenderer from '../lib/QuadRenderer.js';
+import { drawKeyboard } from '../lib/keyboardLayers.js';
 
 const DEFAULT_COLOR = '#5dadec';
 const DEFAULT_PIANO_HEIGHT = 250;

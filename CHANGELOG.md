@@ -1,14 +1,20 @@
 # Changelog
 
-## 2.0.0-beta.1
+## 2.0.0
 
 The renderer is now a purpose-built WebGL2 quad renderer. PixiJS is removed
 outright — it is no longer a dependency, a peer dependency, or reachable from
 any entry point.
 
-This is a prerelease on purpose. The API is finished and tested, but the
-renderer underneath it is new, and the first stable tag should go out only after
-this has been run inside a real consumer.
+Validated against p2piano, the consumer this was built for, before release:
+
+- keyboard and particles render **pixel-identical** to 1.2.1 (0.000% of pixels
+  differing by more than 8 luma); note blocks match once scroll timing is
+  accounted for, and better than two runs of 1.2.1 match each other
+- no stuck keys through the colour-stack API under pointer drag, keyboard
+  chords, or p2piano's double-render path
+- p2piano's client bundle dropped **443 kb raw / 129 kb gz** (-22%), with
+  `pixi.js` gone from its lockfile entirely and no callsite changes required
 
 ### Breaking
 
@@ -25,7 +31,10 @@ this has been run inside a real consumer.
   `./piano-roll`, `./core` and `./audio`. `piano-visualizer/dist/…` is not part
   of the API.
 - **Output is per-file ESM from `tsc`**, not a rolled Vite bundle. Required for
-  the tree-shaking guarantees below; consumers on CommonJS need a bundler.
+  the tree-shaking guarantees below; consumers on CommonJS need a bundler. The
+  emitted modules resolve under plain Node ESM — every relative specifier
+  carries an explicit `.js` — so the package works outside a bundler, and
+  `check:package` fails the build if that ever stops being true.
 - `forceRedraw()` is a no-op on every module. It existed to invalidate cached
   graphics; the new renderer rebuilds its instance buffer every frame. Kept so
   existing callsites compile.
@@ -93,6 +102,9 @@ no frame-rate win here; the win is -93% gzipped and -85% JS heap.
 
 ### Tooling
 
+- `package.json` now declares `license: MIT`. The LICENSE file always said MIT,
+  but the field was missing, so the registry listed every published version as
+  unlicensed.
 - pnpm is the package manager; `package-lock.json` is removed and
   `pnpm-workspace.yaml` carries a real `allowBuilds` entry for esbuild, which
   was what made `pnpm dev` fail with `ERR_PNPM_IGNORED_BUILDS`.

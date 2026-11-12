@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import PianoAudio from './PianoAudio';
-import type { Instrument } from './loadDPiano';
+import PianoAudio from './PianoAudio.js';
+import type { Instrument } from './loadDPiano.js';
 
 type Event = { midi: number; velocity?: number };
 

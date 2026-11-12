@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import VisualizationController from './VisualizationController';
-import Layout, { Section } from '../Layout';
-import Cursor, { CursorType } from '../lib/Cursor';
+import VisualizationController from './VisualizationController.js';
+import Layout, { Section } from '../Layout.js';
+import Cursor, { CursorType } from '../lib/Cursor.js';
 
 vi.mock('../lib/Cursor', () => ({
   default: {

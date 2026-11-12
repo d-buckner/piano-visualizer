@@ -6,8 +6,8 @@
  * rather than separate mouse and touch bookkeeping. A mouse drag across keys
  * glides the same way a finger does.
  */
-import Layout from '../Layout';
-import { midiAt } from './keyboardLayers';
+import Layout from '../Layout.js';
+import { midiAt } from './keyboardLayers.js';
 
 export type KeyboardInputOptions = {
   canvas: HTMLCanvasElement;

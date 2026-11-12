@@ -2,10 +2,11 @@
   "name": "piano-visualizer",
   "author": "d-buckner",
   "repository": "https://github.com/d-buckner/piano-visualizer",
-  "version": "2.0.0-beta.1",
+  "version": "2.0.0",
   "packageManager": "pnpm@11.1.2",
   "type": "module",
   "description": "Composable piano experiences: keyboard, piano roll, or both. Optional d-piano sound.",
+  "license": "MIT",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -48,8 +49,9 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:acceptance": "playwright test",
-    "prepublishOnly": "npm run typecheck && npm run build && npm run check:shaking",
-    "release": "npm run build && npm publish"
+    "prepublishOnly": "npm run typecheck && npm run build && npm run check:shaking && npm run check:package",
+    "release": "npm run build && npm run check:package && npm publish",
+    "check:package": "node scripts/check-package.mjs"
   },
   "peerDependencies": {
     "d-piano": "^1.2.0",

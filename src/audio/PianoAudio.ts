@@ -9,7 +9,7 @@
  * d-piano is an optional peer dependency. either inject your own instrument or
  * let this module lazy-load d-piano on first use.
  */
-import { type DPianoOptions, type Instrument, loadDPiano } from './loadDPiano';
+import { type DPianoOptions, type Instrument, loadDPiano } from './loadDPiano.js';
 
 const DEFAULT_VELOCITY = 0.8;
 

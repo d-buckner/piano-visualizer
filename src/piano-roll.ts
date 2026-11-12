@@ -5,6 +5,6 @@
  * note input, room state, or audio scheduling — the consumer projects note
  * state in through startNote/endNote.
  */
-export { default } from './PianoRoll';
-export { default as PianoRoll } from './PianoRoll';
-export type { PianoRollConfig } from './PianoRoll';
+export { default } from './PianoRoll.js';
+export { default as PianoRoll } from './PianoRoll.js';
+export type { PianoRollConfig } from './PianoRoll.js';

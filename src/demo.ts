@@ -5,7 +5,7 @@
  * individual layers, and `?scenario=mock-2` replays the fixed sequence the
  * acceptance tests measure.
  */
-import Visualization from './Visualization';
+import Visualization from './Visualization/index.js';
 
 const params = new URLSearchParams(window.location.search);
 

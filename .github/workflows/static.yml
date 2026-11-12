@@ -40,6 +40,10 @@ jobs:
         run: pnpm run build
       - name: Verify tree shaking
         run: pnpm run check:shaking
+      # bundlers resolve extensionless imports, so a package that only works
+      # inside a bundler passes every other check here and breaks on install
+      - name: Verify package resolves as ESM
+        run: pnpm run check:package
       - name: Build demo
         run: pnpm run build:demo
       - name: Install browsers

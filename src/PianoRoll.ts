@@ -8,10 +8,10 @@
  *
  * it never owns note input or audio: state comes in through startNote/endNote.
  */
-import Layout, { type Range } from './Layout';
-import type { ActiveBlock } from './lib/ActiveBlock';
-import NoteRoll from './lib/NoteRoll';
-import QuadRenderer from './lib/QuadRenderer';
+import Layout, { type Range } from './Layout.js';
+import type { ActiveBlock } from './lib/ActiveBlock.js';
+import NoteRoll from './lib/NoteRoll.js';
+import QuadRenderer from './lib/QuadRenderer.js';
 
 export type PianoRollConfig = {
   container: HTMLElement;

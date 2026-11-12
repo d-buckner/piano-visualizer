@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import containerStyle from './containerStyle';
+import containerStyle from './containerStyle.js';
 
 describe('containerStyle', () => {
   it('should export a string containing CSS styles', () => {

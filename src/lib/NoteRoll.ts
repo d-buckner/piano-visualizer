@@ -8,10 +8,10 @@
  *
  * geometry, motion and the glow stack are held to the 1.x look exactly.
  */
-import Layout from '../Layout';
-import type { ActiveBlock } from './ActiveBlock';
-import type QuadRenderer from './QuadRenderer';
-import { adjustColor, parseColor, type RGBA } from './color';
+import Layout from '../Layout.js';
+import type { ActiveBlock } from './ActiveBlock.js';
+import type QuadRenderer from './QuadRenderer.js';
+import { adjustColor, parseColor, type RGBA } from './color.js';
 
 const MIN_BLOCK_HEIGHT = 8;
 const ANIMATION_SPEED_FACTOR = 0.2;

@@ -10,8 +10,8 @@
  * this file plus color.ts is the whole renderer. there is no scene graph to
  * diff, no texture atlas, and nothing to pool.
  */
-import { type RGBA, toFloats } from './color';
-import { WebGL2UnavailableError } from './webgl';
+import { type RGBA, toFloats } from './color.js';
+import { WebGL2UnavailableError } from './webgl.js';
 
 export type Rect = {
   x: number;

@@ -6,11 +6,11 @@
  * can reuse it. hit testing is plain arithmetic: keys are laid out by formula,
  * so a press is a containment scan with no event system underneath.
  */
-import Layout, { type Range } from '../Layout';
-import KeyState from '../lib/keyState';
-import KeyboardInput from '../lib/keyboardInput';
-import QuadRenderer from '../lib/QuadRenderer';
-import { drawKeyboard } from '../lib/keyboardLayers';
+import Layout, { type Range } from '../Layout.js';
+import KeyState from '../lib/keyState.js';
+import KeyboardInput from '../lib/keyboardInput.js';
+import QuadRenderer from '../lib/QuadRenderer.js';
+import { drawKeyboard } from '../lib/keyboardLayers.js';
 
 export type PianoConfig = {
   container: HTMLElement;
